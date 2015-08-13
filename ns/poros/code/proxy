@@ -1,0 +1,28 @@
+#!# perl: poros/code/proxy
+
+use strict;
+use warnings;
+use YAML::XS;
+use NS::Poros::Query;
+use NS::MIO::TCP;
+use NS::MIO::CMD;
+
+return sub
+{
+    my ( %param, %result ) = @_;
+
+    my ( $node, $run, $exe ) = map{ $param{proxy}{$_} }qw( node run exe );
+    if( $run )
+    {
+        $run->{input} = NS::Poros::Query->dump( $run->{input} ) if $run->{input};
+        %result = NS::MIO::TCP->new( @$node )->run( %$run );
+    }
+    elsif( $exe )
+    {
+        my $do = delete $exe->{cmd};
+        %result = NS::MIO::CMD->new( map { $_ => $do } @$node )->run( %$exe );
+    }
+
+    YAML::XS::DumpFile \*STDOUT, \%result;
+    return 0;
+};

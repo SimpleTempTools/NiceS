@@ -1,0 +1,22 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Util::OptConf;
+use NS::Collector::Stat;
+
+my %o = NS::Util::OptConf->load()->get( qw( interval=i ) )->dump();
+
+my ( @eval, @info );
+map{ $_ =~ /{/ ? push @eval, $_ : push @info, $_ }@ARGV;
+
+my $test = +{ 'STDIN' => \@eval } if @eval;
+
+push @info, 'TEST', map{ $_ =~ /{(\w+)}{[^}]+}{[^}]+}/g; }@eval if @eval;
+
+while(1)
+{
+    my $info = NS::Collector::Stat->new( test => $test )->eval;
+    $info->info( @info ) if ! @ARGV || @info;
+    $o{interval} ? sleep $o{interval} : exit ;
+}

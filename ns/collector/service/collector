@@ -1,0 +1,22 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Util::Sudo;
+use NS::Util::OptConf;
+use NS::Collector::Jobs;
+use Data::Dumper;
+
+
+NS::Util::Sudo->sudo();
+
+$| ++;
+
+$NS::Util::OptConf::THIS = 'collector';
+my %o = NS::Util::OptConf->load()->dump();
+
+my $c = NS::Collector::Jobs->new( %o );
+
+print "start...\n";
+sleep 5;
+$c->run();

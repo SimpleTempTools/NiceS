@@ -1,0 +1,78 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Deploy::Ctrl;
+use NS::Util::Sudo;
+use NS::Util::OptConf;
+use File::Basename;
+use MIME::Base64;
+
+use Tie::File;
+use Data::Dumper;
+
+use NS::Util::NSStat;
+
+NS::Util::Sudo->sudo();
+
+$| ++;
+
+$NS::Util::OptConf::THIS = 'deploy';
+
+my %deploy = NS::Util::OptConf->load()->dump( 'deploy' );
+my %notify = NS::Util::OptConf->load()->dump( 'notify' );
+my %util = NS::Util::OptConf->load()->dump( 'util' );
+
+my $notify = $deploy{notify} || $util{notify};
+$notify = [ $notify ] unless ref $notify;
+
+
+my %o = NS::Util::OptConf->load()
+    ->set(  interval => 5, dump => '1m' )->get( qw(  interval=i dump=s ) )->dump();
+
+my $stat =  NS::Util::NSStat->new( name => 'deploy.service.dump_watch' );
+
+do
+{
+    my @data;
+    system 'clear';
+    for my $name ( map{ basename $_ }glob "$o{conf}/*" )
+    {
+        next unless -f "$o{ctrl}/$name";
+
+        my ( $ctrl, @stuck, $exc, %data ) = NS::Deploy::Ctrl->new( $name => $o{ctrl} );
+
+        @stuck = $ctrl->stuck();
+
+        next unless @stuck;
+
+        map{
+            $data{$_->[1]}{$_->[2]} = $_->[0].":".decode_base64( $_->[3] );
+        }@stuck if @stuck;
+
+        print "-" x 75, "\nname: $name\n";
+        YAML::XS::DumpFile \*STDOUT, \%data;
+        push @data, sprintf "$name:%s", YAML::XS::Dump %data;
+        
+    }
+
+
+    if( @data )
+    {
+        my $d = join '|', @data;
+        $d =~ s/\n//g;
+        my @n;
+        map { print "$_ $d\n"; push @n, "$_ $d"; }@$notify;
+        die "tie fail: $!" unless tie my @d,
+            'Tie::File', "$notify{cache}/$o{dump}/ns.deploy.stuck";
+        @d = @n;
+        $stat->write( 'error' => join '\n', @n );
+    }
+    else
+    {
+        unlink "$notify{cache}/$o{dump}/ns.deploy.stuck";
+    }
+
+    $stat->write( 'stat' => '0' );
+}while( sleep $o{interval} );
+

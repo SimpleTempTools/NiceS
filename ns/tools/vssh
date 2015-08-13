@@ -1,0 +1,46 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use YAML::XS;
+use Net::SSH::Perl;
+use NS::Util::OptConf;
+use NS::VSSH;
+use Data::Dumper;
+use NS::Hermes;
+use Term::ReadPassword;
+use Expect;
+use NS::VSSH::CheckPw;
+
+=head1 SYNOPSIS
+
+ $0 [--range host] [--user user] [--max maxthread] [--timeout num] [--verbose]
+    
+=cut
+
+
+my $option = NS::Util::OptConf->load();
+my %o = $option->get( qw( range=s user=s max=i timeout=i verbose ) )->dump();
+
+my $range = NS::Hermes->new( $option->dump( 'range' ) );
+ 
+my $user = $o{user} || operator();
+my $vssh = NS::VSSH->new( 
+    timeout => $o{timeout},
+    max => $o{max},
+
+    user => $user,
+    host => $o{range} ? [ $range->load( delete $o{range} )->list ] : [],
+    quiet => $o{verbose} ? 0 : 1,
+);
+
+my $c = 3;
+while( ! ( $ENV{PASSWD} && NS::VSSH::CheckPw::check( $user, $ENV{PASSWD} )))
+{ $ENV{PASSWD} = read_password( "$user\'s password: "); exit unless $c--; }
+
+$vssh->run();
+
+sub operator
+{
+    my $name = `logname`; chop $name; return $name;
+}

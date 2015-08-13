@@ -1,0 +1,53 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+use File::Spec;
+use Data::Dumper;
+
+use NS::Deploy;
+use NS::Util::Sudo;
+use NS::Util::Screen;
+use NS::Util::OptConf;
+use NS::Util::Debug;
+
+NS::Util::Sudo->sudo();
+
+#unless ( NS::Util::Screen->check() )
+#{
+#    warn "deploy need in screen\n";
+#    exit 1;
+#}
+
+$| ++;
+
+$NS::Util::OptConf::THIS = 'deploy';
+
+my @argv = @ARGV;
+my %o = NS::Util::OptConf->load()->get( qw( check unlog ) )->dump();
+
+exit 0 unless my $name = shift;
+
+if( $o{unlog} || $o{check} )
+{
+    my %macro;
+    map{ $_ =~ /^([^=]+)=(.*)/ ? ( $macro{$1} = $2 ) : ( $macro{$_} = 1 ); }@ARGV;
+    NS::Util::Debug->dump( 'macro', \%macro );
+
+    my $deploy = NS::Deploy->new( 
+        macro => \%macro, 
+        name => $name,
+        map{ $_ => $o{$_} }qw( mould cache ctrl conf code lock )
+    );
+
+    exit 0 if $o{check};
+
+    $deploy->run( );
+}
+else
+{
+    my $log = POSIX::strftime( "$name.%Y-%m-%d_%H:%M:%S", localtime );
+
+    system sprintf "ln -fsn '%s' '%s'" , $log, File::Spec->join( $o{logs}, $name );
+    exec sprintf "$0 --unlog '%s' %s %s",
+        join( "' '", @argv ), $ENV{TERM}? '|tee' : '>', File::Spec->join( $o{logs}, $log );
+}

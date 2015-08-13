@@ -1,0 +1,16 @@
+#!# perl: poros/code/chmod
+use strict;
+use warnings;
+use YAML::XS;
+
+return sub
+{
+    my ( %param, $status ) = @_;
+    my %argv = %{$param{argv}};
+
+    map{ $status = "$_ error: $?." if( system "chmod $argv{$_} $_" ); }keys %argv;
+
+    $status ||= 'ok';
+    YAML::XS::DumpFile \*STDOUT, $status;
+};
+

@@ -1,0 +1,28 @@
+#!/home/s/ops/perl/bin/perl
+
+=head1 SYNOPSIS
+
+ $0 [--port num] [--thread num] script
+
+=cut
+use strict;
+use warnings;
+
+use NS::Util::TcpServer;
+use NS::Util::OptConf;
+
+$NS::Util::OptConf::ARGC = 1;
+
+$| ++;
+
+#@NS::Util::OptConf::CONF = qw( pass_through no_ignore_case );
+
+my $option = NS::Util::OptConf->load();
+my %o = $option->set( port => 4000, max => 40 )->get( qw( port=i max=i ) )->dump();
+
+
+NS::Util::TcpServer->new(
+    port  => $o{port},
+    thread => $o{max},
+    'exec' => shift
+)->run();

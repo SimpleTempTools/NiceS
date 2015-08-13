@@ -1,0 +1,78 @@
+#!/home/s/ops/perl/bin/perl
+
+use strict;
+use warnings;
+use File::Spec;
+
+use NS::Hermes;
+use NS::Util::OptConf;
+use NS::Poros::Client;
+
+$| ++;
+
+$NS::Util::OptConf::THIS = 'poros';
+$NS::Util::OptConf::ARGC = -1;
+@NS::Util::OptConf::CONF = qw( no_ignore_case pass_through ); 
+
+=head1 SYNOPSIS
+
+ $0 -r range [--user username] [--timeout seconds] [--max number] [--proxy] cmd ..
+
+[--proxy-name foo] [--proxy-timeout 86400] [--proxy-max 32]
+
+=cut
+my $option = NS::Util::OptConf->load();
+my %o = $option->get(
+     qw( range=s user=s timeout=i max=i port=i proxy verbose 
+     proxy-name=s proxy-timeout=i proxy-max=i )
+)->dump();
+
+$option->assert( 'range' );
+
+my $code = shift;
+my $port = delete $o{port};
+my %query = ( code => $code, logname => operator(), argv => argv( $code ) );
+
+$query{user} = delete $o{user} if $o{user};
+
+my $range = NS::Hermes->new( $option->dump( 'range' ) );
+
+
+my $client = NS::Poros::Client->new( 
+    map { join ':', $_, $port } $range->load( delete $o{range} )->list 
+);
+
+my $proxy = $o{'proxy-name'} || $o{proxy};
+$client->proxy( "$o{conf}/proxy/$proxy" ) if $proxy;
+
+my %result = $client->run( %o, input => \%query ); 
+
+my %mesg;
+while ( my ( $type, $mesg ) = each %result )
+{
+    while ( my ( $mesg, $node ) = each %$mesg )
+    {
+        map { $_ =~ s/:$port$// } @$node;
+
+        $mesg =~ s/--- \d+\n$//;
+        $node = $range->load( $node );
+        $node = sprintf "%s[%d]", $node->dump(), scalar $node->list;
+        my @m = eval{ YAML::XS::Load( $mesg ) } if $mesg;
+        $mesg{$type}{$node} = $@ ? $mesg : @m >1 ? \@m : $m[0];
+    }
+}
+
+YAML::XS::DumpFile \*STDERR, \%mesg if %mesg;
+exit 0;
+
+sub operator
+{
+    my $name = `logname`; chop $name; return $name;
+}
+
+sub argv
+{
+    my $code = File::Spec->join( $o{argv}, shift );
+    return -f $code && ( $code = do $code ) && ref $code eq 'CODE'
+        ? &$code( @ARGV ) : \@ARGV;
+}

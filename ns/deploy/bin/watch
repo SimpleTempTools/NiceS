@@ -1,0 +1,41 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Deploy::Ctrl;
+use NS::Util::Sudo;
+use NS::Util::OptConf;
+use File::Basename;
+use MIME::Base64;
+
+NS::Util::Sudo->sudo();
+
+$| ++;
+
+$NS::Util::OptConf::THIS = 'deploy';
+
+my %o = NS::Util::OptConf->load()->set(  interval => 2 )->get( qw(  interval=i ) )->dump();
+
+do
+{
+    system 'clear';
+    for my $name ( map{ basename $_ }glob "$o{conf}/*" )
+    {
+        next unless -f "$o{ctrl}/$name";
+
+        my ( $ctrl, @stuck, $exc, %data ) = NS::Deploy::Ctrl->new( $name => $o{ctrl} );
+
+        @stuck = $ctrl->stuck();
+        $exc = $ctrl->excluded();
+
+        next unless @stuck || @$exc;
+
+        map{ $data{stuck}{$_->[1]}{$_->[2]} = $_->[0].":".decode_base64( $_->[3] ) }@stuck if @stuck;
+        $data{excluded} = $exc if @$exc;
+
+        print "-" x 75, "\nname: $name\n";
+        YAML::XS::DumpFile \*STDOUT, \%data;
+    }
+
+}while( sleep $o{interval} );
+

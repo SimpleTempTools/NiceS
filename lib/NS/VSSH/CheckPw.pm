@@ -2,39 +2,48 @@ package NS::VSSH::CheckPw;
 
 use warnings;
 use strict;
+use Carp;
 
-use YAML::XS;
-use Net::SSH::Perl;
-use Term::ReadPassword;
 use Expect;
-use NS::VSSH::Constants;
+use YAML::XS;
+use Term::ReadPassword;
 
-sub check
+our $passwd;
+
+sub new
 {
-    my ( $user, $passwd, $status ) = splice @_, 0, 2;
-    return unless $user && $passwd;
-    local $SIG{ALRM} = sub { die 'timeout' };
-    eval{
-        alarm 5;
+    my ( $class, %self ) = @_;
+    confess "undef user" unless $self{user};
+    bless \%self, ref $class || $class;
+}
+
+sub checkpw
+{
+    my $user = shift->{user};
+
+    for( 1 .. shift )
+    {
+        my $pw = read_password( "$user\'s password: " );
 
         my $exp = Expect->new();
         $exp->spawn( "ssh -o NumberOfPasswordPrompts=1 -l $user 127.0.0.1 date" );
-        ( undef, $status ) = $exp->expect
+        
+        my @status = $exp->expect
             (
                 3,
                 [ qr/(yes\/no)/ => sub { $exp->send( "yes\n" ); exp_continue; } ],
-                [ qr/[Pp]assword/ => sub { $exp->send( "$passwd\n" ); exp_continue; } ],
-                [ qr/[Pp]ermission denied/ => sub { $exp->send( "$passwd\n" );$status =1;return; } ],
+                [ qr/[Pp]assword/ => sub { $exp->send( "$pw\n" ); exp_continue; } ],
+                [ qr/[Pp]ermission denied/ => sub { $exp->send( "$pw\n" );return; } ],
             );
-
-        $status = ( $status && $status =~ /exited with status 0/ ) ? 0 : 1;
         $exp->hard_close();
-        alarm 0;
-    };
-    $status = 1 if $@;
 
-    return $status ? 0 : 1;
-
+        if( $status[1] && $status[1] =~ /exited with status 0/ )
+        {
+            $passwd = $pw;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 1;

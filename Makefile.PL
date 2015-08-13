@@ -29,7 +29,7 @@ WriteMakefile
     ABSTRACT_FROM => $PKG_FILE,
     PREREQ_PM     => \%PREREQ_PM, 
     dist          => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean         => { FILES => [ "$PKG_NAME-*", "ns.i", qw( *.in *.ex ) ] },
+    clean         => { FILES => [ "$PKG_NAME-*", "ns.i", 'Makefile.old', qw( *.in *.ex ) ] },
     ( $ExtUtils::MakeMaker::VERSION >= 6.3002 ? ( LICENSE => 'perl' ) : () ),
 );
 

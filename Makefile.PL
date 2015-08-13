@@ -16,6 +16,9 @@ our %PREREQ_PM =
     'Getopt::Long' => 2.38,
     'Thread::Queue' => 2.12,
     'IO::Socket::Multicast' => 1.12,
+
+    'Term::ANSIColor' => 3.00,
+    'Term::ReadPassword' => 0.11,
 );
 
 our $PKG_NAME = 'nices';

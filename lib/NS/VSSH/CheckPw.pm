@@ -18,7 +18,7 @@ sub check
         alarm 5;
 
         my $exp = Expect->new();
-        $exp->spawn( "ssh -l $user 127.0.0.1 date" );
+        $exp->spawn( "ssh -o NumberOfPasswordPrompts=1 -l $user 127.0.0.1 date" );
         ( undef, $status ) = $exp->expect
             (
                 3,

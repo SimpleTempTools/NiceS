@@ -10,14 +10,13 @@ use POSIX qw( :sys_wait_h );
 use FindBin qw( $Script );
 
 use POSIX;
-use Data::Dumper;
-use NS::VSSH::Comp;
 use FindBin qw( $Bin );
 use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants :pushpop );
 $Term::ANSIColor::AUTORESET = 1;
 use Term::ReadPassword;
 
+use NS::VSSH::Comp;
 use NS::VSSH::OCMD;
 use NS::VSSH::VMIO;
 use NS::VSSH::Constants;
@@ -89,6 +88,73 @@ sub new
     bless \%self, ref $class || $class;
 }
 
+sub _comp
+{
+    my $self = shift;
+    my ( $sudo, $user, $host, $group ) = @$self{qw( sudo user host group )};
+    my $range = NS::Hermes->new( );
+    my $prompt = sprintf "%s@%s[%d] sh%s", 
+        $sudo || $user, $group,
+        scalar $range->load( $host->{$group} )->list(),
+        ( $sudo && $sudo eq 'root' ) ? '#':'$';
+
+    my $tc = NS::VSSH::Comp->new( 
+        'clear'  => qr/\cl/, 
+        'reverse'  => qr/\cr/, 
+        'wipe'  => qr/\cw/, 
+         prompt => $prompt ,  
+         choices => [ keys %HELP ],
+         up       => qr/\x1b\[[A]/,
+         down     => qr/\x1b\[[B]/,
+         left     => qr/\x1b\[[D]/,
+         right    => qr/\x1b\[[C]/,
+         quit     => qr/[\cc]/, 
+    );
+    my ( $cmd, $danger ) = $tc->complete();
+    return $cmd unless $danger;
+
+    while( 1 )
+    {
+        print "$cmd [y/n]:";
+        my $in = <STDIN>;
+        next unless $in;
+        return $cmd if $in eq "y\n";
+        return undef if $in eq "n\n";
+    }
+}
+
+sub _rsync
+{
+    my ( $self, $cmd ) = @_;
+    my $max = 3;
+
+    my @rsync = split /\s+/, $cmd;
+    shift @rsync;
+
+    my ( $src, $dst );
+    $src = shift @rsync;
+    unless( $src ) { $self->help( '.rsync' ); return; }
+    unless( -e $src ){ print BOLD  RED "$src: No such file or directory\n"; return; }
+
+    $dst = ( @rsync && $rsync[0] !~ /^-/ ) ? shift @rsync : $src;
+
+
+    $src = sprintf "%s%s", abs_path( $src ), $src =~ /\/$/ ? '/' :'' if $src !~ /^\//;
+    $dst = sprintf "%s%s", abs_path( $dst ), $dst =~ /\/$/ ? '/' :'' if $dst !~ /^\//;
+
+    if( $src =~ /\s+/ || $dst =~ /\s+/ )
+    {
+        print BOLD  RED "has \\s+ in the path\n"; return; 
+    };
+
+    my $opt = join ' ', @rsync;
+    print "src: $src\ndst: $dst\nopt: $opt\nusr: $self->{user}\nmax: $max\n";
+    $cmd = "rsync $src $self->{user}\@{}:$dst $opt";
+    my $typeio = 'expect';
+    return yesno() ? ( $max, $cmd, $typeio ) : ();
+ 
+}
+
 sub run
 {
     my ( $self, %busy, $job ) = shift;
@@ -104,74 +170,27 @@ sub run
 
     print $NS::VSSH::Constants::WELCOME;
     $self->NS::VSSH::OCMD::ocmd( cmd => '.info' );
-
     my $range = NS::Hermes->new( );
+
     while ( 1 )
     {
-        my $typeio = 'ssh';
-        my $max = $self->{max};
+        my ( $typeio, $max, $RUNABL ) = ( 'ssh', $self->{max}, 1 );
 
         @kill = ();
-        $RUNABL = 1;
-        my $prompt = sprintf "%s@%s[%d] sh%s", 
-            $self->{sudo} || $self->{user}, 
-            $self->{group},
-            scalar $range->load( $self->{host}{$self->{group}} )->list(),
-            ( $self->{sudo} && $self->{sudo} eq 'root' ) ? '#':'$';
-
-        my $tc = NS::VSSH::Comp->new( 
-            'clear'  => qr/\cl/, 
-            'reverse'  => qr/\cr/, 
-            'wipe'  => qr/\cw/, 
-             prompt => $prompt ,  
-             choices => [ keys %HELP ],
-             up       => qr/\x1b\[[A]/,
-             down     => qr/\x1b\[[B]/,
-             left     => qr/\x1b\[[D]/,
-             right    => qr/\x1b\[[C]/,
-	     quit     => qr/[\cc]/, 
-        );
-        my ( $cmd, $type ) = $tc->complete();
-
-        next unless $cmd;
-      
-        next if $type && ! checkcmd( $cmd );
+        next unless my $cmd = $self->_comp();
 
         push @HISTORY, $cmd;
         exit if $cmd eq 'exit' || $cmd eq 'quit' ||  $cmd eq 'logout';
         
         if( $cmd =~ /^\.rsync/ )
         {
-             $max = 3;
-             my @rsync = split /\s+/, $cmd;
-             shift @rsync;
-
-             my ( $src, $dst );
-             $src = shift @rsync;
-             unless( $src ) { $self->help( '.rsync' ); next; }
-             unless( -e $src ){ print BOLD  RED "$src: No such file or directory\n"; next; }
-
-             $dst = ( @rsync && $rsync[0] !~ /^-/ ) ? shift @rsync : $src;
-
-
-             $src = sprintf "%s%s", abs_path( $src ), $src =~ /\/$/ ? '/' :'' if $src !~ /^\//;
-             $dst = sprintf "%s%s", abs_path( $dst ), $dst =~ /\/$/ ? '/' :'' if $dst !~ /^\//;
-
-             if( $src =~ /\s+/ || $dst =~ /\s+/ )
-             {
-                 print BOLD  RED "has \\s+ in the path\n"; next; 
-             };
-             my $opt = join ' ', @rsync;
-             print "src: $src\ndst: $dst\nopt: $opt\nusr: $self->{user}\nmax: $max\n";
-             $cmd = "rsync $src $self->{user}\@{}:$dst $opt";
-	     $typeio = 'expect';
-             next unless yesno();
+             my @rsync = $self->_rsync( $cmd );
+             ( $max, $cmd, $typeio ) = @rsync ? @rsync : next;
+             
         }
         elsif( $cmd =~ /^\.mcmd/ )
         {
-             $cmd =~ s/^\.mcmd\s*//;;
-	     $typeio = 'local';
-             
+             $cmd =~ s/^\.mcmd\s*//; $typeio = 'local';
              if( $cmd !~ /\{\}/ ){ $self->help( '.mcmd' ); next; }
              next unless yesno();
         }
@@ -180,19 +199,11 @@ sub run
             next if $cmd =~ /^\.[a-z]/ && NS::VSSH::OCMD::ocmd( $self, cmd => $cmd );
         }
 
-      
-        my $danger;
-        for ( @DANGER )
-        {
-            if( $cmd =~ /$_/ ) { $danger = yesno() ? 0 : 1; last; }
-        };
-        next if $danger;
+        next if ( grep{ $cmd =~ /$_/ }@DANGER ) && ! yesno();
 
         my $key = time.'.'.$self->{job}.'.'.rand;
         $job = sprintf "%s/%s", $self->{path}, $key;
         mkdir $job;
-
-        if( $cmd =~ /;;/ ) { print "check your cmd\n"; next; }
 
         $cmd = "sudo -H -u $self->{sudo} $cmd" if $self->{sudo};
 
@@ -356,18 +367,6 @@ sub yesno
     }
 }
 
-sub checkcmd
-{
-    my $cmd = shift;
-    while( 1 )
-    {
-        print "$cmd [y/n]:";
-        my $in = <STDIN>;
-        next unless $in;
-        return 1 if $in eq "y\n";
-        return 0 if $in eq "n\n";
-    }
-}
 sub progress_symbol
 {
    my ( $rcount, $icount, $hcount ) = @_;

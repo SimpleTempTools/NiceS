@@ -63,7 +63,7 @@ our %HELP =
                     .rsync [本地目录] [远程目录(缺省时和本地目录一样)] [rsync 参数]
                     ---.rsync /tmp/foo：同步/tmp/foo目录到远程机器
                     ---.rsync /tmp/bar/ -av --delete 同步/tmp/bar/目录，
-                            指定rsync参数 --av --delete
+                            指定rsync参数 -av --delete
                     ---.rsync /tmp/foo /tmp/bar :同步本地/tmp/foo 到远程的/tmp/bar
     ',
     '.mcmd' => '运行批量命令

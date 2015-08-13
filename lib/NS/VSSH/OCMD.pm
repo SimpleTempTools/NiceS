@@ -9,6 +9,7 @@ use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants :pushpop );
 $Term::ANSIColor::AUTORESET = 1;
 use Term::ReadPassword;
+use NS::Util::OptConf;
 
 
 use NS::VSSH::Constants;

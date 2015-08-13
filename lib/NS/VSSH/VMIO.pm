@@ -35,20 +35,20 @@ our %vmio =
                 $ssh->register_handler( 'stdout', sub {
                         my( $channel, $buffer ) = @_;
                         my $str = $buffer->bytes;
-                        print "\n$node [stdout]: $str\n" if $ENV{QVSSH_DEBUG};
+                        print "\n$node [stdout]: $str\n" if $ENV{nsdebug};
                         push @so, $str;
                         if ( $str =~/\b[Pp]assword\b/ ) {
-                            print "\n$node: send passwd\n" if $ENV{QVSSH_DEBUG};
+                            print "\n$node: send passwd\n" if $ENV{nsdebug};
                            $channel->send_data( $ENV{PASSWD}."\n" );
                         }
                     });
                 $ssh->register_handler( 'stderr', sub {
                         my( $channel, $buffer ) = @_;
                         my $str = $buffer->bytes;
-                        print "\n$node [stderr]: $str\n" if $ENV{QVSSH_DEBUG};
+                        print "\n$node [stderr]: $str\n" if $ENV{nsdebug};
                         push @sr, $str;
                         if ( $str =~/\b[Pp]assword\b/ ) {
-                            print "\n$node: send passwd\n" if $ENV{QVSSH_DEBUG};
+                            print "\n$node: send passwd\n" if $ENV{nsdebug};
                             $channel->send_data( $ENV{PASSWD}."\n" );
                         }
                     });

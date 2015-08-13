@@ -33,7 +33,7 @@ my $vssh = NS::VSSH->new(
     quiet => $o{verbose} ? 0 : 1,
 );
 
-NS::VSSH::CheckPw->new( user => $user )->checkpw( 3 );
+exit 0 unless NS::VSSH::CheckPw->new( user => $user )->checkpw( 3 );
 
 $vssh->run();
 

@@ -7,73 +7,97 @@ use YAML::XS;
 use Net::SSH::Perl;
 use Term::ReadPassword;
 use Expect;
-use NS::VSSH::Constants;
+
+use Data::Dumper;
 
 our %vmio = 
 (
     ssh => sub
         {
             my %param = @_;
-            $0 = 'vssh.io';
-            map{ die "$_ undef" unless $param{$_} }qw( node input output );
+            map{ die "$_ undef" unless $param{$_} }qw( node id config exec user );
 
-            my ( $node, $input, $output, %result ) = @param{qw( node input output )};
+            my ( $node, $id, $config, $passwd, $user, %result )
+                = @param{qw( node id config passwd user )};
+        
+            my ( $tmppath, $timeout, $sudo, $tty, $askpass )
+                = @$config{qw( tmppath timeout sudo tty askpass )};
+            $0 = "vssh vmio ssh $node";
+
+            my $output = "$tmppath/$id.$node";
             local $SIG{ALRM} = sub { die 'timeout' };
-
-            eval{
-                alarm $input->{timeout};
-                map{ die "$_ undef" unless defined $input->{$_} }qw( cmd usr );
         
-                my %pty = ( use_pty => 1 ) if $input->{pty};
-                my $ssh = Net::SSH::Perl->new( 
-                    $node, privileged => '0', %pty,
-                    options => [ 'StrictHostKeyChecking no' ],
+            open STDOUT, '>',  $output;
+            open STDERR, '>&', STDOUT;
+        
+            $timeout = 5 unless $timeout && $timeout >= 5;
+
+            my $exec = "$tmppath/$id.exec";
+            my @exec = 
+                (
+                    sprintf( "scp '$tmppath/$id.todo' %s$node:$exec 1>/dev/null 2>&1",
+                        $user ? "$user@" : '' ),
+                    sprintf( "ssh -o StrictHostKeyChecking=no -c blowfish %s %s $node %s '%s;%s;%s'", 
+                        $tty ? $tty == 1 ? "-t" : "-tt" : '',
+                        $user ? "-l $user" : '',
+                        $sudo ? "sudo -H -u $sudo" : '',
+                        "sh $tmppath/$id.exec",
+                        'echo "******* status exit $? exit status *******"',
+                        "rm -f $tmppath/$id.exec",
+                        )
                 );
-                $ENV{PASSWD} ? $ssh->login( $input->{usr}, $ENV{PASSWD} ) : die 'ENV{PASSWD} undef';
-        
-                my ( $sr, $so, @sr, @so );
-                $ssh->register_handler( 'stdout', sub {
-                        my( $channel, $buffer ) = @_;
-                        my $str = $buffer->bytes;
-                        print "\n$node [stdout]: $str\n" if $ENV{nsdebug};
-                        push @so, $str;
-                        if ( $str =~/\b[Pp]assword\b/ ) {
-                            print "\n$node: send passwd\n" if $ENV{nsdebug};
-                           $channel->send_data( $ENV{PASSWD}."\n" );
-                        }
-                    });
-                $ssh->register_handler( 'stderr', sub {
-                        my( $channel, $buffer ) = @_;
-                        my $str = $buffer->bytes;
-                        print "\n$node [stderr]: $str\n" if $ENV{nsdebug};
-                        push @sr, $str;
-                        if ( $str =~/\b[Pp]assword\b/ ) {
-                            print "\n$node: send passwd\n" if $ENV{nsdebug};
-                            $channel->send_data( $ENV{PASSWD}."\n" );
-                        }
-                    });
-                
-                ( $so, $sr, $result{'exit'} ) = $ssh->cmd( $input->{cmd} );
 
-                push @so, $so if $so;
-                push @sr, $sr if $sr;
-                $result{stdout} = join "\n", @so;
-                $result{stderr} = join "\n", @sr;
+           unless( $config->{sshSafeModel} )
+           {
+               @exec = (
+                   sprintf( "ssh -o StrictHostKeyChecking=no -c blowfish %s %s $node %s '%s;%s'",
+                       $tty ? $tty == 1 ? "-t" : "-tt" : '',
+                       $user ? "-l $user" : '',
+                       $sudo ? "sudo -H -u $sudo" : '',
+                       $param{'exec'},
+                       'echo "******* status exit $? exit status *******"',
+                   )
+               );
+           }
 
-                $result{stdout} =~ s/.*[Pp]assword\s?:[\s\n]*//;
-                $result{stderr} =~ s/.*[Pp]assword\s?:[\s\n]*//;
+           my $exp = Expect->new();
+           $exp->spawn( join ' && ', @exec );
+           my ( undef, $stat ) = $exp->expect
+               (
+                   $timeout,
+                   map
+                   {
+                       my $k = $_;
+                       my $p = $askpass->{$k} eq 'PASSWD' ? $passwd : $askpass->{$k};
+                       [ qr/$k/ => sub { $exp->send( "$p\n" ); exp_continue; } ],
+                   }keys %$askpass
+               );
 
-                alarm 0;
-            };
-            
-            if( $@ )
+           $exp->hard_close();
+
+            my @stdout = `cat '$output'` if -f $output;
+            map
             {
-                $@ =~ s/ at \/.+//;
-                %result = ( stdout => '', stderr => "$0 error: $@", 'exit' => 1 );
-            }
+                $_ =~ s/\w+\@$node\'s //;
+                $_ =~ s/[Pp]assword\s?:[\s\n]*//;
+                $_ =~ s/$exec: line 2: //;
+            }@stdout unless $ENV{nsdebug};
+
+            my $stdout = join '', grep{ 
+                $_ !~ /password: $/ && $_ !~ /^Connection to [a-zA-Z0-9\.-]+ closed\./
+            }@stdout;
+
+            my $status = $stdout =~ /\*\*\*\*\*\*\* status exit (\d+) exit status \*\*\*\*\*\*\*/
+                         ? $1 : 1;
+
+             $stdout =~ s/\*\*\*\*\*\*\* status exit 0 exit status \*\*\*\*\*\*\*//g;
+            ( $result{stdout}, $result{stderr}, $result{'exit'} )
+                = ( ( $stat && $stat !~ /exited with status 0$/ ) || $status )
+                  ? ( '', "$stdout$stat", $status ) : ( $stdout ||'' , '' , $status );
         
             YAML::XS::DumpFile $output, \%result;
         },
+  
 
     expect => sub
         {
@@ -131,7 +155,7 @@ our %vmio =
         },
         
 
-    'local' => sub
+    'mcmd' => sub
         {
             my %param = @_;
             $0 = 'vssh.local.io';

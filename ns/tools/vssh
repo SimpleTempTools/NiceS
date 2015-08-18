@@ -7,7 +7,6 @@ use NS::Hermes;
 
 use NS::VSSH;
 use NS::VSSH::CheckPw;
-
 use NS::Util::OptConf;
 
 =head1 SYNOPSIS
@@ -16,28 +15,25 @@ use NS::Util::OptConf;
     
 =cut
 
+$NS::Util::OptConf::THIS = 'vssh';
 
 my $option = NS::Util::OptConf->load();
 my %o = $option->get( qw( range=s user=s max=i timeout=i verbose ) )->dump();
 
 my $range = NS::Hermes->new( $option->dump( 'range' ) );
  
-my $user = $o{user} || operator();
+my $user = $o{user} || `logname`;
+chomp $user;
 
 my $vssh = NS::VSSH->new( 
     timeout => $o{timeout},
     max => $o{max},
-
     user => $user,
     host => $o{range} ? [ $range->load( delete $o{range} )->list ] : [],
     quiet => $o{verbose} ? 0 : 1,
+    hostdb => $o{hostdb},
 );
 
 exit 0 unless NS::VSSH::CheckPw->new( user => $user )->checkpw( 3 );
 
 $vssh->run();
-
-sub operator
-{
-    my $name = `logname`; chop $name; return $name;
-}

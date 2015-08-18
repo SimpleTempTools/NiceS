@@ -21,6 +21,8 @@ sub checkpw
 {
     my $user = shift->{user};
 
+    return 1 if $passwd = $ENV{PASSWD};
+
     for( 1 .. shift )
     {
         my $pw = read_password( "$user\'s password: " );

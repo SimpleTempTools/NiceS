@@ -106,7 +106,7 @@ sub run
     {
         kill 9, keys %busy;
         push @kill, values %busy;
-        print STDERR "killed.\n";
+        print STDERR "killed\n";
 
         $RUNABL = 0;
     };
@@ -227,8 +227,8 @@ sub run
     
         unlink "$job.todo";
 
-        push @{$re{"---\nexit: 1\nstderr: no run"}}, @node if @node;
-        push @{$re{"---\nexit: 1\nstderr: killed"}}, @kill if @kill;
+        push @{$re{"---\nexit: 1\nstderr: no run\n"}}, @node if @node;
+#        push @{$re{"---\nexit: 1\nstderr: killed\n"}}, @kill if @kill;
 
         $self->{help}->result( %re );
     }

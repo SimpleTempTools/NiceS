@@ -3,16 +3,19 @@ package NS::VSSH::OCMD;
 use strict;
 use warnings;
 use Carp;
+
 use Tie::File;
 use Data::Dumper;
 use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants :pushpop );
 $Term::ANSIColor::AUTORESET = 1;
 use Term::ReadPassword;
+
+use NS::Hermes;
+
 use NS::Util::OptConf;
 use NS::VSSH::OCMD::Help;
 use NS::VSSH::OCMD::History;
-
 
 $|++;
 
@@ -34,11 +37,15 @@ sub run
 {
     my ( $this, $exec ) = @_;
     my ( $type, @argv ) = split /\s+/, $exec;
+
+    $this->{help}->head( $type );
+
     my @e = $type eq '.list' ? $this->list( @argv )
+      : $type eq '.info' ? $this->info( @argv ) 
       : $type eq '.dump' ? $this->dump( @argv ) 
-      : $type eq '.use' ? $this->dump( @argv )
+      : $type eq '.use' ? $this->use( @argv )
       : $type eq '.cleardb' ? $this->cleardb( @argv )
-      : $type eq '.sort' ? $this->sort( @argv )
+      : $type eq '.sort' ? $this->sort( @argv )->list()
       : $type eq '.config' ? $this->config( @argv )
       : $type eq '.clear' ? $this->clear( @argv )
       : $type eq '.history' ? $this->history( @argv )
@@ -47,10 +54,13 @@ sub run
       : $type eq '.unsudo' ? $this->unsudo( @argv )
       : $type eq '.rsync' ? $this->rsync( @argv )
       : $type eq '.mcmd' ? $this->mcmd( $exec ) ##exec
+      : $type eq '.expect' ? $this->expect( $exec ) ##exec
       : ( $type eq '.add' || $type eq '.del' ) ? $this->node( $type, @argv )->list()
     : $this->help( @argv );
 
-    return ( $type eq '.rsync' || $type eq '.mcmd' ) ? @e : ();
+    $this->{help}->tail( $type );
+
+    return ( grep{ $type eq $_ }qw( .rsync .mcmd .expect ) ) ? @e : ();
 }
 
 
@@ -77,26 +87,36 @@ sub use
 sub cleardb
 {
     my ( $this, @db ) = @_;
-    map{ $this->{hostdb}->clear($_);print "delete: $_\n"; }@db;
+    map{ $this->{hostdb}->clear($_);print "delete: $_\n"; }
+        @db ? @db : $this->{hostdb}->use();
+    return $this;
 }
 
 sub info
 {
     my $this = shift;
     print "Host DB:\n";
-    map { print "$_\n" }sort $this->{hostdb}->list();
+    my $range = NS::Hermes->new();
+    map { 
+        my @node = $this->{hostdb}->load( $_ );
+        printf "  $_:\n    count: %s\n    hosts:%s\n",
+            scalar @node, $range->load( \@node )->dump;
+    }sort $this->{hostdb}->list();
+ 
+    return $this;
 }
 
 sub sort
 {
     my ( $this, $sort ) = @_;
     $this->{hostdb}->sort( $sort );
+    return $this;
 }
 
 sub config
 {
     my ( $this, $cmd ) = @_;
-    my ( $k, $v ) = $cmd ? $cmd =~ /^([^=]+)=(\w+)\s*$/ : ();
+    my ( $k, $v ) = $cmd ? $cmd =~ /^([^=]+)=([\w\/]+)\s*$/ : ();
 
     unless( $k )
     {
@@ -111,25 +131,33 @@ sub config
                  }
 
             }
-            else
-            {
-                print "$n1=$v1\n";
-            }
+            else { print "$n1=$v1\n"; }
         }
     }
     else
     {
-         if( $k =~ /^([^.])+\.(.+)$/ )
+         if( $k =~ /^([^.]+)\.(.+)$/ )
          {
+             if( $this->{config}{$1}{$2} 
+                 && $this->{config}{$1}{$2} =~ /^\d+$/
+                 && $v && $v !~ /^\d+$/ 
+             )
+             { warn "$v no a number.\n"; return; }
+
              $this->{config}{$1}{$2} = $v;
              print "$1:$2=$v\n";
          }
          else
          {
+             if( $this->{config}{$k} 
+                 && $this->{config}{$k} =~ /^\d+$/ 
+                 && $v && $v !~ /^\d+$/
+             )
+             { warn "$v no a number.\n"; return; }
+
              $this->{config}{$k} = $v;
              print "$k=$v\n";
          }
-   
     }
 }
 
@@ -236,7 +264,7 @@ sub rsync
     print "src: $src\ndst: $dst\nopt: $opt\n";
 
     my $cmd = "rsync $src $this->{user}\@{}:$dst $opt";
-    return $this->{help}->yesno() ? ( 'expect', $cmd ) : undef;
+    return $this->{help}->yesno() ? ( 'rsync', $cmd ) : undef;
 }
 
 sub mcmd
@@ -246,9 +274,18 @@ sub mcmd
     return ( 'mcmd', $exec );
 }
 
+sub expect
+{
+    my ( $this, $exec ) = @_;
+    $exec =~ s/^\.expect\s*//;
+    return ( 'expect', $exec );
+}
+
 sub help
 {
-    print "help\n";
+    my $this = shift;
+    $this->{help}->help( shift );
+    return $this;
 }
 
 sub welcome

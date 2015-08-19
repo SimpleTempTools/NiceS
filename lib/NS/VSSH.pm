@@ -7,24 +7,26 @@ use Expect;
 use Tie::File;
 use Fcntl qw( :flock );
 use POSIX qw( :sys_wait_h );
-
 use Cwd 'abs_path';
+use Tie::File;
 
 use NS::VSSH::Comp;
 use NS::VSSH::OCMD;
 use NS::VSSH::VMIO;
 use NS::VSSH::HostDB;
 
-use Tie::File;
 use NS::VSSH::OCMD::Help;
+
+use Term::ANSIColor qw(:constants :pushpop );
+$Term::ANSIColor::AUTORESET = 1;
+
 
 use Data::Dumper;
 
 $|++;
 
 my ( $procbol, @procbol ) = ( 0,'-','\\','|','/' );
-
-my ( @DANGER, @kill, @HISTORY, $RUNABL )  = qw( rm remove init reboot );
+my ( @DANGER, @kill, $RUNABL )  = qw( rm remove init reboot );
 
 sub new
 {
@@ -33,21 +35,21 @@ sub new
     map{ confess "$_ undef" unless $self{$_}; }qw( host user );
     my %host = map{ $_ => 1 }@{delete $self{host}};
 
+
     $self{config} = +{ 
         sudo => '',
         askpass => { '[Pp]assword' => 'PASSWD' },
         tmppath => '/tmp',
         sshSafeModel => 1,
         tty => 1,
-        max => +{ ssh => 128, rsync => 3, mcmd => 128 },
+        max => +{ ssh => 128, rsync => 3, mcmd => 128, expect => 128 },
         timeout => 300,
+        quiet => 1,
     };
 
     $self{hostdb} = NS::VSSH::HostDB->new( 
         name => 'base', path => $self{hostdb}
-    );
-
-    $self{hostdb}->clear()->add( keys %host );
+    )->clear()->add( keys %host );
 
     $self{ocmd} = NS::VSSH::OCMD->new( 
         hostdb => $self{hostdb},
@@ -56,6 +58,7 @@ sub new
     );
 
     $self{help} = NS::VSSH::OCMD::Help->new();
+
     bless \%self, ref $class || $class;
 }
 
@@ -108,29 +111,27 @@ sub run
         $RUNABL = 0;
     };
 
-    $self->{ocmd}->welcome()->info();
-    my $range = NS::Hermes->new( );
+    $self->{ocmd}->welcome()->run( '.info' );
 
     while ( 1 )
     {
-        $/ = "\n";
         next unless my $cmd = $self->_comp();
         $self->{ocmd}->sethistory( $cmd );
         exit if $cmd eq 'exit' || $cmd eq 'quit' ||  $cmd eq 'logout';
 
-        my ( $RUNABL, $typeio , $max ) = ( 1 );
+        my ( $RUNABL, $typeio , $max ) = 1;
         @kill = ();
         
         if( $cmd =~ /^\.[a-z]/ )
         {
-            my ( $typeio, $cmd ) = $self->{ocmd}->run( $cmd ); 
+            ( $typeio, $cmd ) = $self->{ocmd}->run( $cmd ); 
             next unless $typeio && $cmd;
         }
         else{ $typeio = 'ssh'; };
 
         next if ( grep{ $cmd =~ /$_/ }@DANGER ) && ! $self->{help}->yesno();
 
-        my $key = 'vssh.'.time.'.'.$$.'.'.rand;
+        my $key = 'vssh.'.$self->{user}.'.'.time.'.'.$$.'.'.rand 20;
         my $job = sprintf "%s/%s", $self->{config}{tmppath}, $key;
 
         %busy = ();
@@ -139,12 +140,11 @@ sub run
         unless( @node ) { print "No host.\n"; next; }
         my ( $rcount, $icount, $hcount )  = ( 0, 0, scalar @node );
            
-exit;
-
         if( $typeio eq 'ssh' && $self->{config}{sshSafeModel} )
         {
-            tie my @exec, 'Tie::File', "$job.todo";
+            die "tie $job.todo fail: $!!" unless tie my @exec, 'Tie::File', "$job.todo";
             push @exec, '#!/bin/bash', $cmd;
+            untie @exec;
         }
 
         unless( $max = $self->{config}{max}{$typeio} )
@@ -159,7 +159,7 @@ exit;
                 $rcount ++;
                 my $node = shift @node;
 
-                $self->{quiet}
+                $self->{config}{quiet}
                    ? procbol( $rcount, $icount,  $hcount )
                    : print "-" x 16, $node, "-" x 16, "[$rcount]#\n";
 
@@ -181,11 +181,12 @@ exit;
                          'exec' => $cmd,
                          user => $self->{user},
                          config => $self->{config},
-                         passwd => $NS::VSSH::CheckPw::passwd,
+                         passwd => $NS::VSSH::Auth::passwd,
                      )
                 };
 
-                YAML::XS::DumpFile "$job.$node", +{ stderr => "vssh code err:$@", 'exit' => 1 } if $@;
+                YAML::XS::DumpFile "$job.$node", 
+                    +{ stderr => "vssh code err:$@", 'exit' => 1 } if $@;
                 exit 0;
             }
 
@@ -200,12 +201,13 @@ exit;
                 unlink "$job.$node";
                 my $error = 'ERROR: Load output fail.' if $@;
                 
-                $error = 'ERROR: exit undef on ouput file.', if ! $error && ! defined $out->{'exit'};
+                $error = 'ERROR: exit undef on ouput file.', 
+                    if ! $error && ! defined $out->{'exit'};
     
                 $out = +{ stderr => "vssh.io: $error", 'exit' => 1 } if $error;
     
                 $icount ++;
-                unless( $self->{quiet} )
+                unless( $self->{config}{quiet} )
                 {
                     print "#" x 16;
                     $out->{'exit'}
@@ -223,6 +225,7 @@ exit;
             }
         }while $RUNABL && ( @node || %busy );
     
+        unlink "$job.todo";
 
         push @{$re{"---\nexit: 1\nstderr: no run"}}, @node if @node;
         push @{$re{"---\nexit: 1\nstderr: killed"}}, @kill if @kill;

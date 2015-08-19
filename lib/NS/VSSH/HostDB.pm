@@ -6,14 +6,15 @@ use Carp;
 
 use Tie::File;
 use File::Basename;
+use NS::Hermes;
 
-our $passwd;
+use constant BASE => 'base';
 
 sub new
 {
     my ( $class, %self ) = @_;
 
-    $self{name} ||= 'base';
+    $self{name} ||= BASE;
     $self{cache} = +{};
 
     bless \%self, ref $class || $class;
@@ -22,30 +23,36 @@ sub new
 sub add
 {
     my $this = shift;
+
+    my @node = map{ split /\s+/, $_ }@_;
     my ( $cache, $name, $path ) = @$this{qw( cache name path )};
 
-    if( $path )
+    die "not allow\n" if $name =~ /:/;
+    if( $path && $name ne BASE )
     {
         die "tie $path/$name fail: $!\n" unless tie my @curr, 'Tie::File', "$path/$name";
         my %node = map{ $_ => 1 }@curr;
-        push  @curr, grep{ ! $node{$_} }@_;
+        push  @curr, grep{ ! $node{$_} }@node;
         untie @curr;
     }
     else
     {
         my %node = map{ $_ => 1 }@{$cache->{$name}};
-        push @{$cache->{$name}}, grep{ ! $node{$_} }@_;
+        push @{$cache->{$name}}, grep{ ! $node{$_} }@node;
     }
+    return $this;
 }
 
 sub del
 {
     my $this = shift;
-    my %node = map{ $_ => 1 }@_;
 
     my ( $cache, $name, $path ) = @$this{qw( cache name path )};
+    die "not allow\n" if $name =~ /:/;
 
-    if( $path )
+    my %node = map{ $_ => 1 }map{ split /\s+/, $_ }@_;
+
+    if( $path && $name ne BASE )
     {
         die "tie $path/$name fail: $!\n" unless tie my @curr, 'Tie::File', "$path/$name";
         @curr = grep{ ! $node{$_} }@curr;
@@ -60,33 +67,47 @@ sub del
 sub use
 {
     my ( $this, $name ) = @_;
-    $this->{name} = $name if $name ;
+    $this->{name} = $name if $name;
     return $this->{name};
 }
 
 sub load
 {
     my $this = shift;
-    my ( $cache, $name, $path ) = @$this{qw( cache name path )};
+    my ( $cache, $name, $path, $sub, @node ) = @$this{qw( cache name path )};
 
-    if( $path )
+    $name = shift if @_;
+
+    ( $name, $sub ) = split /:/, $name, 2;
+
+    if( $path && $name ne BASE )
     {
-
-        die "tie $path/$name fail: $!\n" unless tie my @curr, 'Tie::File', "$path/$name";
-        return @curr;
+        die "tie $path/$name fail: $!\n" unless tie @node, 'Tie::File', "$path/$name";
     }
     else
     {
         $cache->{$name} ||= [];
-        return @{$cache->{$name}};
+        @node = @{$cache->{$name}};
     }
 
+    @node = map{ split /\s+/, $_ }@node;
+
+    return @node unless $sub;
+
+    my @n;
+    map{ push @n, $node[$_-1] if defined $node[$_-1]  }
+        sort{ $a <=> $b }NS::Hermes->new()->load( $sub )->list();
+    
+    return @n;
 }
 
 sub sort
 {
     my ( $this, $sort ) = @_;
     my ( $cache, $name, $path ) = @$this{qw( cache name path )};
+
+    die "not allow\n" if $name =~ /:/;
+
     my @node = $this->load();
     
     if( $sort )
@@ -98,9 +119,9 @@ sub sort
     {
         @node = sort @node;
     }
-    if( $path )
+
+    if( $path && $name ne BASE )
     {
-        
         die "tie $path/$name fail: $!\n" unless tie my @curr, 'Tie::File', "$path/$name";
         @curr = @node;
         untie @curr;
@@ -117,23 +138,28 @@ sub list
 {
     my $this = shift;
 
-    my ( $cache, $path ) = @$this{qw( cache path )};
+    my ( $cache, $path, @list ) = @$this{qw( cache path )};
     if( $path )
     {
-        return map{ basename $_ }glob "$path/*"
+        push @list, grep{ $_ ne BASE }map{ basename $_ }grep{ -f $_ }glob "$path/*"
     }
     else
     {
-        return keys %$cache;
+        push @list, grep{ $_ ne BASE } keys %$cache;
     }
+    return ( BASE, @list );
 }
 
 sub clear
 {
     my ( $this, $clear ) = @_;
     my ( $cache, $name, $path ) = @$this{qw( cache name path )};
+
+    die "not allow\n" if $name =~ /:/;
+
     $clear ||= $name;
-    $path ? unlink "$path/$clear" : delete $cache->{$clear};
+
+    ( $path && $clear ne BASE ) ? unlink "$path/$clear" : delete $cache->{$clear};
     return $this;
 }
 

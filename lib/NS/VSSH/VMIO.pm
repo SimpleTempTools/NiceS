@@ -102,55 +102,48 @@ our %vmio =
     expect => sub
         {
             my %param = @_;
-            $0 = 'vssh.expect.io';
-        
-            map{ die "$_ undef" unless $param{$_} }qw( node input output );
+            map{ die "$_ undef" unless $param{$_} }qw( node id config exec user );
 
-            my ( $node, $input, $output, %result, $status ) = @param{qw( node input output )};
+            my ( $node, $id, $config, $passwd, $user, $exec,  %result )
+                = @param{qw( node id config passwd user exec )};
         
+            my ( $tmppath, $timeout, $sudo, $tty, $askpass )
+                = @$config{qw( tmppath timeout sudo tty askpass )};
+            $0 = "vssh vmio rsync $node";
+
+            my $output = "$tmppath/$id.$node";
             local $SIG{ALRM} = sub { die 'timeout' };
         
             open STDOUT, '>',  $output;
             open STDERR, '>&', STDOUT;
         
-            my $timeout = $input->{timeout};
-            $timeout = 5 if $timeout < 5;
+            $timeout = 5 unless $timeout && $timeout >= 5;
 
-            eval{
+            $exec =~ s/\{\}/$node/;
 
-                alarm $timeout;
-                map{ die "$_ undef" unless defined $input->{$_} }qw( cmd usr );
-        
-                $input->{cmd} =~ s/\{\}/$node/;
-        
-                my $exp = Expect->new();
-                $exp->spawn( $input->{cmd} );
-                ( undef, $status ) = $exp->expect
-                    (
-                        $timeout - 3,
-                        [ qr/\b[Pp]assword\b/ => sub { $exp->send( "$ENV{PASSWD}\n" ); exp_continue; } ],
-                    );
-        
-                $status = ( $status =~ /exited with status 0/ ) ? 0 : 1;
-                $exp->hard_close();
-                alarm 0;
-            };
+            my $exp = Expect->new();
+            $exp->spawn( $exec );
+            my ( undef, $stat ) = $exp->expect
+                (
+                    $timeout,
+                    map
+                    {
+                        my $k = $_;
+                        my $p = $askpass->{$k} eq 'PASSWD' ? $passwd : $askpass->{$k};
+                        [ qr/$k/ => sub { $exp->send( "$p\n" ); exp_continue; } ],
+                    }keys %$askpass
+                );
+
+            $exp->hard_close();
         
             my @stdout = `cat $output` if -f $output;
-            my $stdout = join '', 
-                grep{ $_ !~ /password: $/ && $_ !~ /^Connection to [a-zA-Z0-9\.-]+ closed\./ }
-                @stdout if @stdout;
+            my $stdout = join '', @stdout;
         
             ( $result{stdout}, $result{stderr}, $result{'exit'} )
-                = ( $@ || $status || ( $stdout && $stdout =~ /Cannot exec/ ) )
-                      ? ( '', "$stdout$@", 1 )
-                      : ( $stdout , '' , 0 );
+                = ( $stat && $stat =~ /exited with status 0\b/ )
+                      ? ( $stdout , '' , 0 )
+                      : ( '', "$stdout", 1 );
         
-            $result{stdout} =~ s/\w+\@$node\'s //;
-            $result{stderr} =~ s/\w+\@$node\'s //;
-
-            $result{stdout} =~ s/[Pp]assword\s?:[\s\n]*//;
-            $result{stderr} =~ s/[Pp]assword\s?:[\s\n]*//;
             YAML::XS::DumpFile $output, \%result;
         },
         
@@ -158,31 +151,61 @@ our %vmio =
     'mcmd' => sub
         {
             my %param = @_;
-            $0 = 'vssh.local.io';
-        
-            map{ die "$_ undef" unless $param{$_} }qw( node input output );
+            map{ die "$_ undef" unless $param{$_} }qw( node id config exec user );
 
-            my ( $node, $input, $output, %result ) = @param{qw( node input output )};
+            my ( $node, $id, $config, $passwd, $user, $exec,  %result )
+                = @param{qw( node id config passwd user exec )};
 
+            my ( $tmppath, $timeout, $sudo, $tty, $askpass )
+                = @$config{qw( tmppath timeout sudo tty askpass )};
+            $0 = "vssh vmio ssh $node";
+
+            my $output = "$tmppath/$id.$node";
             local $SIG{ALRM} = sub { die 'timeout' };
-        
-            my ( $out, $status );
+ 
+            $timeout = 5 unless $timeout && $timeout >= 5;
+
+            open STDOUT, '>',  $output;
+            open STDERR, '>&', STDOUT;
+
+            my $status = 0;
             eval{
-                alarm $input->{timeout};
-                map{ die "$_ undef" unless defined $input->{$_} }qw( cmd usr );
+                alarm $timeout;
         
-                $input->{cmd} =~ s/\{\}/$node/;
-                $out = `$input->{cmd}`;
-                $status = $?;
+                $exec =~ s/\{\}/$node/g;
+                system $exec;
+
+                if( $? == -1 )
+                {
+                    print "failed to execute: $!\n";
+                    $status = 1;
+                }
+                elsif( $? & 127 )
+                {
+                    printf "child died with signal %d, %s coredump\n",
+                        ( $? & 127 ), ( $? & 128 ) ? 'with' : 'without';
+                    $status = 1;
+                }
+                elsif( my $exit = $? >> 8 )
+                {
+                    print "child exited with value $exit\n";
+                    $status = $exit;
+                }
+                
                 alarm 0;
             };
+
+            my @stdout = `cat $output` if -f $output;
+            my $stdout = join '', @stdout;
         
             ( $result{stdout}, $result{stderr}, $result{'exit'} )
-                = ( $@ || $status ) ? ( '', "$out$@", 1 ) : ( $out , '' , 0 );
+                = $status ? ( '', $stdout, $status ) : ( $stdout , '' , 0 );
         
             YAML::XS::DumpFile $output, \%result;
         }
 
 );
+
+$vmio{rsync} = $vmio{expect};
 
 1;

@@ -10,6 +10,7 @@ use NS::Util::OptConf;
 use NS::Util::Sudo;
 
 NS::Util::Sudo->sudo();
+use FindBin qw( $RealBin );
 
 $| ++;
 $/ = undef;
@@ -64,4 +65,5 @@ for my $input ( YAML::XS::Load( <> ) )
     }
 }
 
+exec "$RealBin/cache";
 exit 0;

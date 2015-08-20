@@ -90,7 +90,11 @@ sub load
         @node = @{$cache->{$name}};
     }
 
-    @node = map{ split /\s+/, $_ }@node;
+    @node = grep{ /\w/ }map{ split /\s+/, $_ }@node;
+
+    my ( %o, @o );
+    map{ push @o, $_ unless $o{$_}; $o{$_} = 1; }@node;   
+    @node = @o;
 
     return @node unless $sub;
 

@@ -20,12 +20,9 @@ use NS::VSSH::OCMD::Help;
 use Term::ANSIColor qw(:constants :pushpop );
 $Term::ANSIColor::AUTORESET = 1;
 
-
-use Data::Dumper;
-
 $|++;
 
-my ( $procbol, @procbol ) = ( 0,'-','\\','|','/' );
+my ( $procbol, @procbol ) = ( 0, '-', '\\', '|', '/' );
 my ( @DANGER, @kill, $RUNABL )  = qw( rm remove init reboot );
 
 sub new
@@ -34,7 +31,6 @@ sub new
 
     map{ confess "$_ undef" unless $self{$_}; }qw( host user );
     my %host = map{ $_ => 1 }@{delete $self{host}};
-
 
     $self{config} = +{ 
         sudo => '',
@@ -104,7 +100,7 @@ sub run
  
     $SIG{INT} = $SIG{TERM} = sub
     {
-        kill 9, keys %busy;
+        kill 10, keys %busy;
         push @kill, values %busy;
         print STDERR "killed\n";
 
@@ -119,7 +115,8 @@ sub run
         $self->{ocmd}->sethistory( $cmd );
         exit if $cmd eq 'exit' || $cmd eq 'quit' ||  $cmd eq 'logout';
 
-        my ( $RUNABL, $typeio , $max ) = 1;
+        $RUNABL = 1;
+        my ( $typeio , $max );
         @kill = ();
         
         if( $cmd =~ /^\.[a-z]/ )
@@ -166,10 +163,9 @@ sub run
 
                 if ( my $pid = fork() ) { $busy{$pid} = $node; next }
                  
-                $SIG{INT} = $SIG{TERM} = sub
+                $SIG{USR1} = sub
                 { 
-                    YAML::XS::DumpFile "$job.$node", +{ stderr => "killed", 'exit' => 1 }
-                        if $job && $node;
+                    YAML::XS::DumpFile "$job.$node", +{ stderr => "killed", 'exit' => 1 };
                     exit 1;
                 };
   
@@ -186,7 +182,7 @@ sub run
                 };
 
                 YAML::XS::DumpFile "$job.$node", 
-                    +{ stderr => "vssh code err:$@", 'exit' => 1 } if $@;
+                    +{ stderr => "vssh code run err:$@", 'exit' => 1 } if $@;
                 exit 0;
             }
 
@@ -199,11 +195,9 @@ sub run
 
                 my $out = eval{ YAML::XS::LoadFile "$job.$node" };
                 unlink "$job.$node";
-                my $error = 'ERROR: Load output fail.' if $@;
+                my $error = 'ERROR: Load output fail.' 
+                    unless ! $@ && $out && ref $out eq 'HASH' && defined $out->{'exit'};
                 
-                $error = 'ERROR: exit undef on ouput file.', 
-                    if ! $error && ! defined $out->{'exit'};
-    
                 $out = +{ stderr => "vssh.io: $error", 'exit' => 1 } if $error;
     
                 $icount ++;
@@ -223,11 +217,18 @@ sub run
 
                 push @{$re{ YAML::XS::Dump $out }}, $node;
             }
-        }while $RUNABL && ( @node || %busy );
+
+            unless( $RUNABL )
+            {
+                push @{$re{"---\nexit: 1\nstderr: no run\n"}}, @node if @node;
+                @node = ();
+            }
+        }while ( @node || %busy );
+#        }while $RUNABL && ( @node || %busy );
     
         unlink "$job.todo";
 
-        push @{$re{"---\nexit: 1\nstderr: no run\n"}}, @node if @node;
+#        push @{$re{"---\nexit: 1\nstderr: no run\n"}}, @node if @node;
 #        push @{$re{"---\nexit: 1\nstderr: killed\n"}}, @kill if @kill;
 
         $self->{help}->result( %re );

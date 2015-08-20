@@ -8,8 +8,6 @@ use Net::SSH::Perl;
 use Term::ReadPassword;
 use Expect;
 
-use Data::Dumper;
-
 our %vmio = 
 (
     ssh => sub
@@ -75,6 +73,8 @@ our %vmio =
 
            $exp->hard_close();
 
+            print "$stat\n" if $ENV{nsdebug};
+
             my @stdout = `cat '$output'` if -f $output;
             map
             {
@@ -90,10 +90,11 @@ our %vmio =
             my $status = $stdout =~ /\*\*\*\*\*\*\* status exit (\d+) exit status \*\*\*\*\*\*\*/
                          ? $1 : 1;
 
+
              $stdout =~ s/\*\*\*\*\*\*\* status exit 0 exit status \*\*\*\*\*\*\*//g;
             ( $result{stdout}, $result{stderr}, $result{'exit'} )
                 = ( ( $stat && $stat !~ /exited with status 0$/ ) || $status )
-                  ? ( '', "$stdout$stat", $status ) : ( $stdout ||'' , '' , $status );
+                  ? ( '', "$stdout", $status ) : ( $stdout ||'' , '' , $status );
         
             YAML::XS::DumpFile $output, \%result;
         },

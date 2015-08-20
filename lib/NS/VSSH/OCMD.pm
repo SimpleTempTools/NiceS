@@ -138,14 +138,16 @@ sub config
     {
          if( $k =~ /^([^.]+)\.(.+)$/ )
          {
-             if( $this->{config}{$1}{$2} 
-                 && $this->{config}{$1}{$2} =~ /^\d+$/
+
+             my ( $a, $b ) = ( $1, $2 );
+             if( $this->{config}{$a}{$b} 
+                 && $this->{config}{$a}{$b} =~ /^\d+$/
                  && $v && $v !~ /^\d+$/ 
              )
              { warn "$v no a number.\n"; return; }
 
-             $this->{config}{$1}{$2} = $v;
-             print "$1:$2=$v\n";
+             $this->{config}{$a}{$b} = $v;
+             print "$a:$b=$v\n";
          }
          else
          {
@@ -161,10 +163,7 @@ sub config
     }
 }
 
-sub clear
-{
-     system 'clear';
-}
+sub clear { system 'clear'; }
 
 sub history
 {
@@ -202,12 +201,14 @@ sub debug
     }
     elsif( $switch && $switch eq 'off' )
     {
-        $ENV{nsdebug} = 1;
+        $ENV{nsdebug} = 0;
     }
     else
     {
         YAML::XS::DumpFile \*STDOUT, $this;
     }
+    printf "debug: %s\n", $ENV{nsdebug} ? 'on' : 'off';
+    return $this;
 }
 
 ## add del

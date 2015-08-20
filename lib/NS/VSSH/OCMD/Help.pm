@@ -63,6 +63,10 @@ my %HELP =
 
     '.history' => '显示历史',
     '.clear' => '清屏 （或者Ctrl+l）',
+    '.debug' => '调试模式
+                     --- .debug : 没有参数，打印出当前vssh对象
+                     --- .debug on: 打开调试模式
+                     --- .debug off： 关闭调试模式',
 
 
     '.config' => '修改ssh的参数，
@@ -85,7 +89,10 @@ my %HELP =
                                              askpass.abc=ok
                   ',
 
-    '.help' => 'show help info',
+    '.help' => 'show help info
+                   exit \ quit \ logout \ Ctrl+D : 退出
+
+                ',
 );
 
 sub new
@@ -155,7 +162,7 @@ sub help
 
 
     &$title( 'local cmd' );
-    &$mhp( qw( .rsync .mcmd ));
+    &$mhp( qw( .rsync .mcmd .expect ));
 
     &$title( 'term' );
     &$mhp( qw( .history .clear ));

@@ -50,7 +50,7 @@ sub co
                 grep{ -f $_ && $_ =~ /^$path\/$dst=\w{32}$/ }glob "$path/$dst*";
 
             my @data = sort{ $data{$b} <=> $data{$a} } keys %data;
-            unlink splice @data, $keep;
+            unlink splice @data, $keep if @data > $keep;
         }
     }
 

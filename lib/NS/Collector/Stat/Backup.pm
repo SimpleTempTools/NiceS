@@ -16,12 +16,15 @@ sub co
 
     return \@stat unless $path && -d $path;
 
-    map{ $backup{$1} = $2 if $_ =~ /^{BACKUP}{([^}]+)}{(\d+)}/ }@backup;
+    map{ $backup{$1} = $2 if $_ =~ /^{BACKUP}{([\w\/*.:_-]+)}{(\d+)}/ }@backup;
 
     for my $backup ( keys %backup )
     {
-        my @file = grep{ -f $_ && $_ !~ /\s/ }$backup =~ /\*/ ? glob $backup: $backup;
-        my $i = 1;
+        my @file = grep{ -f $_ && $_ =~  /^[\w\/*.:_-]+$/ }
+                       $backup =~ /\*/ ? glob $backup: $backup;
+
+        my ( $i, $keep )= ( 1, $backup{$backup} );
+
         for my $file ( @file )
         {
             last if $i++ > $max;
@@ -32,11 +35,12 @@ sub co
             
             my $dst = $file; $dst =~ s/\//=/g;
 
-            if( -f "$path/$dst=$md5" )
+            if( ! $keep || -f "$path/$dst=$md5" )
             {
                 push @stat, [ $file, $md5 ];
                 next;
             }
+
 
             if( system "cp '$file' '$path/$dst=$xxx'" )
             {
@@ -53,7 +57,6 @@ sub co
                 next;
             }
 
-            my $keep = $backup{$backup} || 5;
             my %data = map{ $_ => ( stat $_ )[9] }
                 grep{ -f $_ && $_ =~ /^$path\/$dst=\w{32}$/ }glob "$path/$dst*";
 

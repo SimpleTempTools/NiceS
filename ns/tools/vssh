@@ -28,6 +28,8 @@ chomp $user;
 
 exit 0 unless NS::VSSH::Auth->new( user => $user )->checkpw( 3 );
 
+mkdir $o{hostdb} if $o{hostdb} && ! -d $o{hostdb};
+
 NS::VSSH->new( 
     timeout => $o{timeout},
     max => $o{max},

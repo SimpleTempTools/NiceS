@@ -17,6 +17,7 @@ use NS::Collector::Stat::User;
 use NS::Collector::Stat::IFace;
 use NS::Collector::Stat::Dmesg;
 use NS::Collector::Stat::Uptime;
+use NS::Collector::Stat::Backup;
 use NS::Hermes;
 
 use Data::Dumper;
@@ -80,12 +81,13 @@ sub new
     }
 
     my %test;
-    map{ my $t = $_; $test{$t} = [ grep{ /^{$t}/ }keys %todo ] }qw( PROC EXEC CALL HTTP PORT );
+    map{ my $t = $_; $test{$t} = [ grep{ /^{$t}/ }keys %todo ] }qw( PROC EXEC CALL HTTP PORT BACKUP );
     push @data, NS::Collector::Stat::Proc->co( @{$test{PROC}} ) if $base || @{$test{PROC}};
     push @data, NS::Collector::Stat::Exec->co( @{$test{EXEC}} ) if $base || @{$test{EXEC}};
     push @data, NS::Collector::Stat::Call->co( @{$test{CALL}} ) if $base || @{$test{CALL}};
     push @data, NS::Collector::Stat::Http->co( @{$test{HTTP}} ) if $base || @{$test{HTTP}};
     push @data, NS::Collector::Stat::Port->co( @{$test{PORT}} ) if $base || @{$test{PORT}};
+    push @data, NS::Collector::Stat::Backup->co( @{$test{BACKUP}} ) if $base || @{$test{BACKUP}};
 
     for ( 0 .. $#data )
     {

@@ -20,11 +20,10 @@ sub co
 
     for my $backup ( keys %backup )
     {
-        my @file = grep{ -f }$backup =~ /\*/ ? glob $backup: $backup;
+        my @file = grep{ -f $_ && $_ !~ /\s/ }$backup =~ /\*/ ? glob $backup: $backup;
         my $i = 1;
         for my $file ( @file )
         {
-            next if $file =~ /\s/;
             last if $i++ > $max;
 
             my $md5 = `md5sum '$file'`;
@@ -39,11 +38,20 @@ sub co
                 next;
             }
 
-            system "cp '$file' '$path/$dst=$xxx'";
+            if( system "cp '$file' '$path/$dst=$xxx'" )
+            {
+                warn "backup copy fail: $?\n";
+                next;
+            }
 
             my $d = `md5sum '$path/$dst=$xxx'`;
             next unless $d =~ /^(\w{32})\s+$path\/$dst=$xxx$/;
-            system "mv '$path/$dst=$xxx' '$path/$dst=$1'";
+            $d = $1;
+            if( system "mv '$path/$dst=$xxx' '$path/$dst=$d'" )
+            {
+                warn "backup mv fail: $?\n";
+                next;
+            }
 
             my $keep = $backup{$backup} || 5;
             my %data = map{ $_ => ( stat $_ )[9] }
@@ -51,6 +59,8 @@ sub co
 
             my @data = sort{ $data{$b} <=> $data{$a} } keys %data;
             unlink splice @data, $keep if @data > $keep;
+
+            push @stat, [ $file, $d ] if -f "$path/$dst=$d";
         }
     }
 

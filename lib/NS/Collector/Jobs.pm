@@ -12,6 +12,7 @@ use threads;
 use Thread::Queue;
 
 use NS::Collector::Push;
+use NS::Collector::Stat::Backup;
 
 use Data::Dumper;
 
@@ -22,6 +23,8 @@ sub new
     map{ confess "no $_\n" unless $this{$_} && -d $this{$_} }
         qw( conf code logs data );
    
+    $NS::Collector::Stat::Backup::path = "$this{data}/backup";
+
     $this{config} = eval{ YAML::XS::LoadFile "$this{conf}/config" };
     confess "load config fail:$@\n" if $@;
 

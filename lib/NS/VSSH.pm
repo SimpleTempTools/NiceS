@@ -7,42 +7,23 @@ use Expect;
 use Tie::File;
 use Fcntl qw( :flock );
 use POSIX qw( :sys_wait_h );
-use FindBin qw( $Script );
-
-use POSIX;
-use Data::Dumper;
-use NS::VSSH::Comp;
-use FindBin qw( $Bin );
 use Cwd 'abs_path';
-use Term::ANSIColor qw(:constants :pushpop );
-$Term::ANSIColor::AUTORESET = 1;
-use Term::ReadPassword;
+use Tie::File;
 
+use NS::VSSH::Comp;
 use NS::VSSH::OCMD;
 use NS::VSSH::VMIO;
-use NS::VSSH::Constants;
+use NS::VSSH::HostDB;
+
+use NS::VSSH::OCMD::Help;
+
+use Term::ANSIColor qw(:constants :pushpop );
+$Term::ANSIColor::AUTORESET = 1;
 
 $|++;
 
-my $option = NS::Util::OptConf->load();
-
-my %RUN = (
-    max => 128,
-    timeout => 900,
-    history => '.vssh_history',
-    hostdb => '.vssh_hostdb'
-);
-
-my @DANGER = qw( rm remove init reboot );
-my ( $progress_symbol, @progress_symbol ) = ( 0,'-','\\','|','/' );
-
-our $BTLEN = $NS::VSSH::Constants::BTLEN;
-our @HISTORY;
-
-my %HELP = %NS::VSSH::Constants::HELP;
-our %OCMD = %NS::VSSH::OCMD;
-my $RUNABL;
-my @kill;
+my ( $procbol, @procbol ) = ( 0, '-', '\\', '|', '/' );
+my ( @DANGER, @kill, $RUNABL )  = qw( rm remove init reboot );
 
 sub new
 {
@@ -51,219 +32,160 @@ sub new
     map{ confess "$_ undef" unless $self{$_}; }qw( host user );
     my %host = map{ $_ => 1 }@{delete $self{host}};
 
+    $self{config} = +{ 
+        sudo => '',
+        askpass => { '[Pp]assword' => 'PASSWD' },
+        tmppath => '/tmp',
+        sshSafeModel => 1,
+        tty => 1,
+        max => +{ ssh => 128, rsync => 3, mcmd => 128, expect => 128 },
+        timeout => 300,
+        quiet => 1,
+    };
 
-    $self{group} = 'base';
-    $self{host}{$self{group}} = [ sort keys %host ];
-    $self{block}{$self{group}} = +{};
+    $self{hostdb} = NS::VSSH::HostDB->new( 
+        name => 'base', path => $self{hostdb}
+    )->clear()->add( keys %host );
 
-    $self{group} = 'base';
-    $self{path} = "/tmp";
-    mkdir $self{path} unless -d $self{path};
+    $self{ocmd} = NS::VSSH::OCMD->new( 
+        hostdb => $self{hostdb},
+        config => $self{config},
+        user => $self{user},
+    );
 
-    $self{history} = $self{user} eq 'root' 
-        ? "/root/$RUN{history}" 
-        : "/home/$self{user}/$RUN{history}";
-
-    $self{hostdb} = $self{user} eq 'root' 
-        ? "/root/$RUN{hostdb}" 
-        : "/home/$self{user}/$RUN{hostdb}";
-
-    $self{pty} = 1;
-    if( my $hostdb = eval{ YAML::XS::LoadFile $self{hostdb}} )
-    {
-        map{ $self{$_} = $hostdb->{$_} if $hostdb->{$_} }qw( host block );
-    }
-
-    $self{group} = 'base';
-    $self{host}{$self{group}} = [];
-    $self{host}{$self{group}} = [ sort keys %host ];
-    $self{block}{$self{group}} = +{};
-
-    tie @HISTORY, 'Tie::File', $self{history};
-
-    $self{job} = sprintf "%s.%d", $self{user}, $$;
-    $self{key} = rand;
-
-    map{ $self{$_} ||= $RUN{$_} }qw( timeout max );
+    $self{help} = NS::VSSH::OCMD::Help->new();
 
     bless \%self, ref $class || $class;
 }
 
+sub _comp
+{
+    my $self = shift;
+    my ( $config, $user, $hostdb ) = @$self{qw( config user hostdb )};
+    my $sudo = $config->{sudo};
+
+    my $prompt = sprintf "%s@%s[%d] sh%s", 
+        $sudo || $user, $hostdb->use(),
+        scalar $hostdb->load(),
+        ( ( $sudo && $sudo eq 'root' ) || $user eq 'root' ) ? '#':'$';
+
+    my $tc = NS::VSSH::Comp->new( 
+        'clear'  => qr/\cl/, 
+        'reverse'  => qr/\cr/, 
+        'wipe'  => qr/\cw/, 
+         prompt => $prompt ,  
+         choices => [ $self->{help}->list() ],
+         up       => qr/\x1b\[[A]/,
+         down     => qr/\x1b\[[B]/,
+         left     => qr/\x1b\[[D]/,
+         right    => qr/\x1b\[[C]/,
+         quit     => qr/[\cc]/, 
+    );
+    my ( $cmd, $danger ) = $tc->complete();
+    return $cmd unless $danger;
+
+    while( 1 )
+    {
+        print "$cmd [y/n]:";
+        my $in = <STDIN>;
+        next unless $in;
+        return $cmd if $in eq "y\n";
+        return undef if $in eq "n\n";
+    }
+}
+
 sub run
 {
-    my ( $self, %busy, $job ) = shift;
+    my ( $self, %busy ) = shift;
  
     $SIG{INT} = $SIG{TERM} = sub
     {
-        kill 9, keys %busy;
+        kill 10, keys %busy;
         push @kill, values %busy;
         print STDERR "killed\n";
 
         $RUNABL = 0;
     };
 
-    print $NS::VSSH::Constants::WELCOME;
-    $self->NS::VSSH::OCMD::ocmd( cmd => '.info' );
+    $self->{ocmd}->welcome()->run( '.info' );
 
-    my $range = NS::Hermes->new( );
     while ( 1 )
     {
-        my $typeio = 'ssh';
-        my $max = $self->{max};
-
-        @kill = ();
-        $RUNABL = 1;
-        my $prompt = sprintf "%s@%s[%d] sh%s", 
-            $self->{sudo} || $self->{user}, 
-            $self->{group},
-            scalar $range->load( $self->{host}{$self->{group}} )->list(),
-            ( $self->{sudo} && $self->{sudo} eq 'root' ) ? '#':'$';
-
-        my $tc = NS::VSSH::Comp->new( 
-            'clear'  => qr/\cl/, 
-            'reverse'  => qr/\cr/, 
-            'wipe'  => qr/\cw/, 
-             prompt => $prompt ,  
-             choices => [ keys %HELP ],
-             up       => qr/\x1b\[[A]/,
-             down     => qr/\x1b\[[B]/,
-             left     => qr/\x1b\[[D]/,
-             right    => qr/\x1b\[[C]/,
-	     quit     => qr/[\cc]/, 
-        );
-        my ( $cmd, $type ) = $tc->complete();
-
-        next unless $cmd;
-      
-        next if $type && ! checkcmd( $cmd );
-
-        push @HISTORY, $cmd;
+        next unless my $cmd = $self->_comp();
+        $self->{ocmd}->sethistory( $cmd );
         exit if $cmd eq 'exit' || $cmd eq 'quit' ||  $cmd eq 'logout';
+
+        $RUNABL = 1;
+        my ( $typeio , $max );
+        @kill = ();
         
-        if( $cmd =~ /^\.rsync/ )
+        if( $cmd =~ /^\.[a-z]/ )
         {
-             $max = 3;
-             my @rsync = split /\s+/, $cmd;
-             shift @rsync;
-
-             my ( $src, $dst );
-             $src = shift @rsync;
-             unless( $src ) { $self->help( '.rsync' ); next; }
-             unless( -e $src ){ print BOLD  RED "$src: No such file or directory\n"; next; }
-
-             $dst = ( @rsync && $rsync[0] !~ /^-/ ) ? shift @rsync : $src;
-
-
-             $src = sprintf "%s%s", abs_path( $src ), $src =~ /\/$/ ? '/' :'' if $src !~ /^\//;
-             $dst = sprintf "%s%s", abs_path( $dst ), $dst =~ /\/$/ ? '/' :'' if $dst !~ /^\//;
-
-             if( $src =~ /\s+/ || $dst =~ /\s+/ )
-             {
-                 print BOLD  RED "has \\s+ in the path\n"; next; 
-             };
-             my $opt = join ' ', @rsync;
-             print "src: $src\ndst: $dst\nopt: $opt\nusr: $self->{user}\nmax: $max\n";
-             $cmd = "rsync $src $self->{user}\@{}:$dst $opt";
-	     $typeio = 'expect';
-             next unless yesno();
+            ( $typeio, $cmd ) = $self->{ocmd}->run( $cmd ); 
+            next unless $typeio && $cmd;
         }
-        elsif( $cmd =~ /^\.mcmd/ )
-        {
-             $cmd =~ s/^\.mcmd\s*//;;
-	     $typeio = 'local';
-             
-             if( $cmd !~ /\{\}/ ){ $self->help( '.mcmd' ); next; }
-             next unless yesno();
-        }
-        else
-        {
-            next if $cmd =~ /^\.[a-z]/ && NS::VSSH::OCMD::ocmd( $self, cmd => $cmd );
-        }
+        else{ $typeio = 'ssh'; };
 
-      
-        my $danger;
-        for ( @DANGER )
-        {
-            if( $cmd =~ /$_/ ) { $danger = yesno() ? 0 : 1; last; }
-        };
-        next if $danger;
+        next if ( grep{ $cmd =~ /$_/ }@DANGER ) && ! $self->{help}->yesno();
 
-        my $key = time.'.'.$self->{job}.'.'.rand;
-        $job = sprintf "%s/%s", $self->{path}, $key;
-        mkdir $job;
-
-        if( $cmd =~ /;;/ ) { print "check your cmd\n"; next; }
-
-        $cmd = "sudo -H -u $self->{sudo} $cmd" if $self->{sudo};
-
-        if( $typeio eq 'ssh' && $cmd =~ /^[a-zA-Z0-9\/\- &]+$/ )
-        {
-            $cmd = sprintf "ssh -o StrictHostKeyChecking=no -c blowfish %s -l $self->{user} {} %s '%s'",
-                 ( $self->{pty} ? '-t': '' ), 
-                 ( $self->{sudo} ? "sudo -p 'password:' -u root" : ''), 
-                 $cmd;
-            $typeio ='expect';
-        }
-
-        my %input = ( 
-            cmd => $cmd, 
-            usr => $self->{user}, 
-            pty => $self->{pty}, 
-            timeout => $self->{timeout} 
-        );
+        my $key = 'vssh.'.$self->{user}.'.'.time.'.'.$$.'.'.rand 20;
+        my $job = sprintf "%s/%s", $self->{config}{tmppath}, $key;
 
         %busy = ();
-        my ( @node, %re  ) 
-            = grep{ !$self->{block}{$self->{group}}{$_}}
-                @{$self->{host}{$self->{group}}};
+        my ( @node, %re  ) =  $self->{hostdb}->load();
 
-        my (  $rcount, $icount, $hcount )  = ( 0, 0, scalar @node );
-        unless( @node )
+        unless( @node ) { print "No host.\n"; next; }
+        my ( $rcount, $icount, $hcount )  = ( 0, 0, scalar @node );
+           
+        if( $typeio eq 'ssh' && $self->{config}{sshSafeModel} )
         {
-            print @{$self->{host}{$self->{group}}} 
-                ? "All of your host may have been blocked.\n" : "No host.\n";
+            die "tie $job.todo fail: $!!" unless tie my @exec, 'Tie::File', "$job.todo";
+            push @exec, '#!/bin/bash', $cmd;
+            untie @exec;
+        }
+
+        unless( $max = $self->{config}{max}{$typeio} )
+        {
+            print "config.max.$typeio=0\n";
             next;
         }
-           
+
         do{
             while ( $RUNABL && @node && keys %busy < $max )
             {
                 $rcount ++;
                 my $node = shift @node;
 
-                $self->{quiet}
-                   ? progress_symbol( $rcount, $icount,  $hcount )
+                $self->{config}{quiet}
+                   ? procbol( $rcount, $icount,  $hcount )
                    : print "-" x 16, $node, "-" x 16, "[$rcount]#\n";
+
 
                 if ( my $pid = fork() ) { $busy{$pid} = $node; next }
                  
-                $SIG{INT} = $SIG{TERM} = sub{ 
-
-                    YAML::XS::DumpFile "$job/$node",
-                   +{ 
-                         stderr => "killed", 
-                         'exit' => 1,
-                    } if $job && $node;
+                $SIG{USR1} = sub
+                { 
+                    YAML::XS::DumpFile "$job.$node", +{ stderr => "killed", 'exit' => 1 };
                     exit 1;
                 };
   
                 eval
                 {
                      $NS::VSSH::VMIO::vmio{$typeio}( 
+                         id => $key,
                          node => $node, 
-                         input => \%input, 
-                         output => "$job/$node", 
+                         'exec' => $cmd,
+                         user => $self->{user},
+                         config => $self->{config},
+                         passwd => $NS::VSSH::Auth::passwd,
                      )
                 };
-                YAML::XS::DumpFile "$job/$node",
-                   +{ 
-                         stdout => '', 
-                         stderr => "system vssh.io error", 
-                         'exit' => 1,
-                    } if $@;
-              
+
+                YAML::XS::DumpFile "$job.$node", 
+                    +{ stderr => "vssh code run err:$@", 'exit' => 1 } if $@;
                 exit 0;
             }
+
             for ( keys %busy )
             {
                 my $pid = waitpid( -1, WNOHANG );
@@ -271,16 +193,15 @@ sub run
                 my $node =  delete $busy{$pid};
                 next unless $node;
 
-                my $out = eval{ YAML::XS::LoadFile "$job/$node" };
-                unlink "$job/$node";
-                my $error = 'ERROR: Laod' if $@;
+                my $out = eval{ YAML::XS::LoadFile "$job.$node" };
+                unlink "$job.$node";
+                my $error = 'ERROR: Load output fail.' 
+                    unless ! $@ && $out && ref $out eq 'HASH' && defined $out->{'exit'};
                 
-                $error = 'ERROR: std', if ! $error && ! defined $out->{'exit'};
-    
                 $out = +{ stderr => "vssh.io: $error", 'exit' => 1 } if $error;
     
                 $icount ++;
-                unless( $self->{quiet} )
+                unless( $self->{config}{quiet} )
                 {
                     print "#" x 16;
                     $out->{'exit'}
@@ -291,88 +212,34 @@ sub run
                 }
                 else
                 {
-		    progress_symbol( $rcount, $icount,  $hcount );
+		    procbol( $rcount, $icount,  $hcount );
                 }
 
                 push @{$re{ YAML::XS::Dump $out }}, $node;
             }
-        }while $RUNABL && ( @node || %busy );
-    
-        rmdir $job;
 
-        print "\n";
-        print PUSHCOLOR RED ON_GREEN  "#" x $BTLEN, ' RESULT ', "#" x $BTLEN;
-        print "\n";
+            unless( $RUNABL )
+            {
+                push @{$re{"---\nexit: 1\nstderr: no run\n"}}, @node if @node;
+                @node = ();
+            }
+        }while ( @node || %busy );
+#        }while $RUNABL && ( @node || %busy );
     
-        my $block = $self->{block}{$self->{group}};
+        unlink "$job.todo";
 
-        push @{$re{"---\nexit: 1\nstderr: no run"}}, @node if @node;
-        push @{$re{"---\nexit: 1\nstderr: killed"}}, @kill if @kill;
-        if( %$block )
-        {
-            map{ 
-                push @{$re{"---\nstderr: block\nexit: 1"}}, $_ 
-                    if $block->{$_};
-            }@{$self->{host}{$self->{group}}};
-        }
-        print "=" x 68, "\n";
-        map{
-    
-            my $c = YAML::XS::Load $_;
-            printf "%s[", $range->load( $re{$_} )->dump;
-            my $count = scalar $range->load( $re{$_} )->list;
-            $c->{'exit'} ? print BOLD  RED $count : print BOLD GREEN $count;
-    
-            print "]:\n";
-            print BOLD  GREEN "$c->{stdout}\n" if $c->{stdout};
-            print BOLD  RED   "$c->{stderr}\n" if $c->{stderr};
-            print "=" x 68, "\n";
-        }keys %re;
+#        push @{$re{"---\nexit: 1\nstderr: no run\n"}}, @node if @node;
+#        push @{$re{"---\nexit: 1\nstderr: killed\n"}}, @kill if @kill;
+
+        $self->{help}->result( %re );
     }
 }
 
-sub help
-{
-    my ( $self, $h ) = @_;
-    print $HELP{$h} ? "$HELP{$h}\n" : "invalid option\n";
-}
-
-sub dumpdb
-{
-    my $self = shift;
-    my ( $hostdb, $host, $block ) = @$self{qw( hostdb host block )};
-    eval{ YAML::XS::DumpFile $hostdb, +{ host => $host, block => $block } };
-}
-
-sub yesno
-{
-    while( 1 )
-    {
-        print "Are you sure you want to run this command [y/n]:";
-        my $in = <STDIN>;
-        next unless $in;
-        return 1 if $in eq "y\n";
-        return 0 if $in eq "n\n";
-    }
-}
-
-sub checkcmd
-{
-    my $cmd = shift;
-    while( 1 )
-    {
-        print "$cmd [y/n]:";
-        my $in = <STDIN>;
-        next unless $in;
-        return 1 if $in eq "y\n";
-        return 0 if $in eq "n\n";
-    }
-}
-sub progress_symbol
+sub procbol
 {
    my ( $rcount, $icount, $hcount ) = @_;
-   printf "\r running ... $progress_symbol[$progress_symbol] [run:$rcount] [running:%4d]  [finish: $icount / $hcount]", $rcount - $icount; 
-   $progress_symbol = ( $progress_symbol >= 3 ) ? 0 : $progress_symbol +1;
+   printf "\r running ... $procbol[$procbol] [run:$rcount] [running:%4d]  [finish: $icount / $hcount]", $rcount - $icount; 
+   $procbol = ( $procbol >= 3 ) ? 0 : $procbol +1;
 }
 
 1;

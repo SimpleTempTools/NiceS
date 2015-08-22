@@ -3,44 +3,38 @@ use strict;
 use warnings;
 
 use YAML::XS;
-use Net::SSH::Perl;
-use NS::Util::OptConf;
-use NS::VSSH;
-use Data::Dumper;
 use NS::Hermes;
-use Term::ReadPassword;
-use Expect;
-use NS::VSSH::CheckPw;
+
+use NS::VSSH;
+use NS::VSSH::Auth;
+use NS::Util::OptConf;
 
 =head1 SYNOPSIS
 
- $0 [--range host] [--user user] [--max maxthread] [--timeout num] [--verbose]
+ $0 [--range host] [--user user] [--max maxthread] [--timeout num] [--verbose] 
+        [--hostdb /my/hostdb/path ]
     
 =cut
 
+$NS::Util::OptConf::THIS = 'vssh';
 
 my $option = NS::Util::OptConf->load();
-my %o = $option->get( qw( range=s user=s max=i timeout=i verbose ) )->dump();
+my %o = $option->get( qw( range=s user=s max=i timeout=i hostdb=s verbose ) )->dump();
 
 my $range = NS::Hermes->new( $option->dump( 'range' ) );
  
-my $user = $o{user} || operator();
-my $vssh = NS::VSSH->new( 
+my $user = $o{user} || `logname`;
+chomp $user;
+
+exit 0 unless NS::VSSH::Auth->new( user => $user )->checkpw( 3 );
+
+mkdir $o{hostdb} if $o{hostdb} && ! -d $o{hostdb};
+
+NS::VSSH->new( 
     timeout => $o{timeout},
     max => $o{max},
-
     user => $user,
     host => $o{range} ? [ $range->load( delete $o{range} )->list ] : [],
     quiet => $o{verbose} ? 0 : 1,
-);
-
-my $c = 3;
-while( ! ( $ENV{PASSWD} && NS::VSSH::CheckPw::check( $user, $ENV{PASSWD} )))
-{ $ENV{PASSWD} = read_password( "$user\'s password: "); exit unless $c--; }
-
-$vssh->run();
-
-sub operator
-{
-    my $name = `logname`; chop $name; return $name;
-}
+    hostdb => $o{hostdb},
+)->run();

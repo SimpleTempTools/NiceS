@@ -4,6 +4,8 @@ use strict;
 use warnings;
 
 use Expect;
+use NS::Hermes;
+use NS::Util::OptConf;
 
 our $TIMEOUT = 20;
 our $SSH = 'ssh -o StrictHostKeyChecking=no -c blowfish -t';
@@ -12,7 +14,7 @@ our $SSH = 'ssh -o StrictHostKeyChecking=no -c blowfish -t';
 
  use NS::Util::ExpSSH;
 
- my $ssh = NS::Util::ExpSSH->new( @zone );
+ my $ssh = NS::Util::ExpSSH->new( );
 
  $ssh->conn( host => 'foo', user => 'joe', pass = 'secret', sudo => 'john' );
 
@@ -21,7 +23,7 @@ our $SSH = 'ssh -o StrictHostKeyChecking=no -c blowfish -t';
 sub new
 {
     my $class = shift;
-    bless $class->l2h( @_ ), ref $class || $class;
+    bless +{}, ref $class || $class;
 }
 
 sub conn
@@ -31,6 +33,7 @@ sub conn
 
     return unless my @host = $self->host( $conn{host} );
 
+
     if ( @host > 1 )
     {
         my @host = map { sprintf "[ %d ] %s", $_ + 1, $host[$_] } 0 .. $#host; 
@@ -38,12 +41,15 @@ sub conn
         $i = $1 - 1 if <STDIN> =~ /(\d+)/ && $1 && $1 <= @host;
     }
 
-    my $exp = Expect->new();
-    my $ssh = "$SSH -l $conn{user} $host[$i]";
+    my $ssh = sprintf "$SSH %s $host[$i]", $conn{user} ? "-l $conn{user}" : '';
     my $prompt = '::sudo::';
+    if ( my $sudo = $conn{sudo} ) { $ssh .= " sudo -p '$prompt' su - $sudo" }
+
+    exec $ssh unless $conn{pass};
+
     my $pass = $conn{pass} || "\n"; $pass .= "\n" if $pass !~ /\n$/;
 
-    if ( my $sudo = $conn{sudo} ) { $ssh .= " sudo -p '$prompt' su - $sudo" }
+    my $exp = Expect->new();
 
     $SIG{WINCH} = sub
     {
@@ -57,7 +63,7 @@ sub conn
     $exp->expect
     ( 
         $TIMEOUT, 
-        [ qr/assword: *$/ => sub { $exp->send( $pass ); exp_continue; } ],
+        [ qr/[Pp]assword: *$/ => sub { $exp->send( $pass ); exp_continue; } ],
         [ qr/[#\$%] $/ => sub { $exp->interact; } ],
         [ qr/$prompt$/ => sub { $exp->send( $pass ); $exp->interact; } ],
     );
@@ -66,36 +72,16 @@ sub conn
 sub host
 {
     my ( $self, $host ) = splice @_;
-    return $host if ! $host || $host =~ qr/^\d+\.\d+\.\d+\.\d+$/;
 
-    my $zone = $self;
-    my ( $name, @zone ) = split '\.', $host;
-    map { return () unless $zone = $zone->{$_} } @zone if %$zone;
+    return $host unless system "host $host > /dev/null";
 
-    grep { ! system "host $_ > /dev/null" }
-        %$zone ? map { join '.', $host, $_ } sort $self->h2l( $zone ) : $host;
-}
+    my $range = NS::Hermes->new( NS::Util::OptConf->load()->dump( 'range') );
+    my $db = $range->db;
 
-sub l2h
-{
-    my $class = shift;
-    return {} unless @_;
-    my $zone = shift; $zone = [ $zone ] unless ref $zone;
-    return { map { $_ => $class->l2h( @_ ) } @$zone };
-}
+    my %node = map{ $_ => 1 }grep{ /$host/ && /^[\w.-]+$/ }
+                   map{ @$_ }$db->select( 'node' );
 
-sub h2l
-{
-    my ( $class, $hash, @list ) = splice @_;
-    my @zone = sort keys %$hash;
-
-    return @zone unless %{ $hash->{ $zone[0] } };
-
-    for my $zone ( @zone )
-    {
-        push @list, map { join '.', $zone, $_ } $class->h2l( $hash->{$zone} );
-    }
-    return @list;
+    return %node ? sort keys %node : $host;
 }
 
 1;

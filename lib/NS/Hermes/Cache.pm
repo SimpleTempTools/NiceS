@@ -65,6 +65,7 @@ sub make
     my ( $handle, $diff, %curr ); ## connect to cache db
     $cdb = NS::Hermes::DBI::Cache->new( $cdb, $NS::Hermes::DBI::Cache::TABLE );
 
+    my $stat = 0;
     for my $cluster ( grep { -f $_ } glob File::Spec->join( $root, '*' ) )
     {
         next unless open( $handle, $cluster ) && binmode $handle;
@@ -77,7 +78,9 @@ sub make
 
         $diff = 1;
         $cdb->delete( name => [ 1, $name ] );   ## delete old
-        $cluster = NS::Hermes::DBI::Root->new( $cluster );
+        my $error = "load fail: $cluster";
+        $cluster = eval{ NS::Hermes::DBI::Root->new( $cluster ) };
+        unless( $cluster ){ $stat ++; delete $curr{$name}; print "$error\n"; next; }
 
         for my $attr ( $cluster->table() )      ## insert new
         {
@@ -103,7 +106,7 @@ sub make
         warn "no change\n";
     }
 
-    NS::Util::NSStat->new( name => 'hermes.service.cache' )->write( 'stat' => '0' );
+    NS::Util::NSStat->new( name => 'hermes.service.cache' )->write( 'stat' => $stat );
     return $self;
 }
 

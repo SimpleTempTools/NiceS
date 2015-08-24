@@ -18,6 +18,7 @@ use NS::Collector::Stat::IFace;
 use NS::Collector::Stat::Dmesg;
 use NS::Collector::Stat::Uptime;
 use NS::Collector::Stat::Backup;
+use NS::Collector::Stat::Coredump;
 use NS::Hermes;
 
 use Data::Dumper;
@@ -78,6 +79,7 @@ sub new
         push @data, NS::Collector::Stat::User->co();
         push @data, NS::Collector::Stat::Sar->co();
         push @data, NS::Collector::Stat::DF->co();
+        push @data, NS::Collector::Stat::Coredump->co();
     }
 
     my %test;

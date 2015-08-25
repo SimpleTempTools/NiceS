@@ -9,7 +9,7 @@ use LWP::UserAgent;
 
 use Data::Dumper;
 
-#retry:3:time:3|host:lvscheck.xitong.nices.net:http://localhost:8080
+#retry:3:time:3:host:lvscheck.xitong.nices.net:http://localhost:8080
 
 my %option = ( 'time' => 5, retry => 1 );
 

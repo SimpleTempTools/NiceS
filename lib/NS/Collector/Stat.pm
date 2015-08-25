@@ -152,7 +152,7 @@ sub info
     {
        my %type = map{ $_ => 1 }@type;
        map{ 
-           map{ printf "%s\n",join "\t", @$_; }@$_; print "\n"; }
+           map{ printf "%s\n",join "\t", map{ defined $_ ? $_ : 'undef' }@$_; }@$_; print "\n"; }
                grep{ $type{$_->[0][0]}
        }@$data;
        return $self;

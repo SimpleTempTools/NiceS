@@ -1,0 +1,27 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use FindBin qw( $RealBin );
+
+use NS::Util::OptConf;
+use NS::Util::Sudo;
+use NS::TPool::W;
+
+use Data::Dumper;
+NS::Util::Sudo->sudo();
+
+$| ++;
+$NS::Util::OptConf::THIS = 'tpool';
+
+=head1 SYNOPSIS
+
+ $0 --server 127.0.0.1:9999 --group name
+    
+=cut
+
+my $option = NS::Util::OptConf->load();
+my %o = $option->get( qw( server=s group=s ) )->dump();
+$option->assert( qw( server group ) );
+
+ NS::TPool::W->new( %o )->run();

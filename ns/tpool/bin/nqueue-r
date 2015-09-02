@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 use NS::Util::OptConf;
-use NS::TPool::R;
+use NS::TPool::NQRead;
 
 $| ++;
 
@@ -17,4 +17,4 @@ my $option = NS::Util::OptConf->load();
 my %o = $option->get( qw( server=s group=s code=s ) )->dump();
 $option->assert( qw( server group ) );
 
-NS::TPool::R->new( %o )->run();
+NS::TPool::NQRead->new( %o )->run();

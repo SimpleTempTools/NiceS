@@ -1,0 +1,42 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Util::OptConf;
+use Data::Dumper;
+
+use NS::Apps::Ctrl;
+
+use Sys::Hostname;
+
+$| ++;
+
+=head1 SYNOPSIS
+
+ $0 [offline|stop|setENV|deploy|rollback|restart|status|online] [--verbose]
+ [--apps appname|foo,bar] 
+ [--service foo] [--deploy bar]
+
+ [--force]
+  
+ ex: offline restart online
+
+=cut
+
+
+$NS::Util::OptConf::THIS='apps';
+my %o = NS::Util::OptConf->load()->get( qw( apps=s force verbose node=s ) )->dump();
+
+my %macro;
+map { $macro{$1} = $2 if $_ =~ /^([^=]+)=(.*)/; }@ARGV;
+
+my $user = ( getpwuid $< )[0];
+
+my $ctrl = NS::Apps::Ctrl->new( node => hostname, %o, 
+               macro => \%macro
+ );
+
+
+$ctrl->do( ctrl => [ grep{ $_ !~ /^([^=]+)=(.*)/ }@ARGV ], 
+           map{ $_ => $o{$_} }qw( apps force )
+);

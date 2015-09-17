@@ -75,8 +75,9 @@ sub dump
     confess "maint's mould undef in conf" unless $conf->{maint}{mould};
     
 
-    confess "tie mould fail: $!" unless 
-        tie my @maint, 'Tie::File', "$path->{mould}/$conf->{maint}{mould}";
+    my $mouldfile =  "$path->{mould}/$conf->{maint}{mould}";
+    confess "no the mould file\n" unless -f $mouldfile;
+    confess "tie mould fail: $!" unless tie my @maint, 'Tie::File', $mouldfile;
 
     my $maint = join "\n", @maint;
 

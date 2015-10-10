@@ -39,7 +39,7 @@ do
         warn "Failed to sync with $ntp\n";
     }
 
-    printf "sync %s.\n", $ok ? 'ok' : 'fail';
+    warn sprintf "sync %s.\n", $ok ? 'ok' : 'fail';
 } while $o{daemon} && sleep $cycle;
 
 exit 0;

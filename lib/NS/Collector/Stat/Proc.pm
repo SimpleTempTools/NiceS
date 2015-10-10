@@ -97,7 +97,7 @@ sub co
         }
         
         map{ $data->{"avg-$_"} /= $data->{count} }grep{ $eo{$_} } keys %eo if $data->{count} > 1;
-        $data->{info} = join ',', sort @{$data->{info}};
+        $data->{info} = join ',', sort @{$data->{info}} if $data->{info};
     }
 
     map{

@@ -6,10 +6,10 @@ batch:
       - 1
       - 1:2
     target:
-      - localhost
+      - 'localhost{1~10}'
 
 maint:
-  mould: apps.deploy
+  mould: apps.test
   macro:
     version: 0001
     aa: 0001

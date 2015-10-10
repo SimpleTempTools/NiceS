@@ -17,7 +17,9 @@ use NS::Collector::Stat::User;
 use NS::Collector::Stat::IFace;
 use NS::Collector::Stat::Dmesg;
 use NS::Collector::Stat::Uptime;
+use NS::Collector::Stat::Watch;
 use NS::Collector::Stat::Backup;
+use NS::Collector::Stat::Coredump;
 use NS::Hermes;
 
 use Data::Dumper;
@@ -78,15 +80,19 @@ sub new
         push @data, NS::Collector::Stat::User->co();
         push @data, NS::Collector::Stat::Sar->co();
         push @data, NS::Collector::Stat::DF->co();
+        push @data, NS::Collector::Stat::Coredump->co();
     }
 
     my %test;
-    map{ my $t = $_; $test{$t} = [ grep{ /^{$t}/ }keys %todo ] }qw( PROC EXEC CALL HTTP PORT BACKUP );
+    map{ my $t = $_; $test{$t} = [ grep{ /^{$t}/ }keys %todo ] }
+        qw( PROC EXEC CALL HTTP PORT BACKUP WATCH );
+
     push @data, NS::Collector::Stat::Proc->co( @{$test{PROC}} ) if $base || @{$test{PROC}};
     push @data, NS::Collector::Stat::Exec->co( @{$test{EXEC}} ) if $base || @{$test{EXEC}};
     push @data, NS::Collector::Stat::Call->co( @{$test{CALL}} ) if $base || @{$test{CALL}};
     push @data, NS::Collector::Stat::Http->co( @{$test{HTTP}} ) if $base || @{$test{HTTP}};
     push @data, NS::Collector::Stat::Port->co( @{$test{PORT}} ) if $base || @{$test{PORT}};
+    push @data, NS::Collector::Stat::Watch->co( @{$test{WATCH}} ) if $base || @{$test{WATCH}};
     push @data, NS::Collector::Stat::Backup->co( @{$test{BACKUP}} ) if $base || @{$test{BACKUP}};
 
     for ( 0 .. $#data )
@@ -146,7 +152,7 @@ sub info
     {
        my %type = map{ $_ => 1 }@type;
        map{ 
-           map{ printf "%s\n",join "\t", @$_; }@$_; print "\n"; }
+           map{ printf "%s\n",join "\t", map{ defined $_ ? $_ : 'undef' }@$_; }@$_; print "\n"; }
                grep{ $type{$_->[0][0]}
        }@$data;
        return $self;

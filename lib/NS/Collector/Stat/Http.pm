@@ -9,7 +9,18 @@ use LWP::UserAgent;
 
 use Data::Dumper;
 
-#retry:3:time:3|host:lvscheck.xitong.nices.net:http://localhost:8080
+#retry:3:time:3:host:lvscheck.xitong.nices.net:proxy:http=127.0.0.1=9999:http://localhost:8080
+#http://iface:eth0:8080
+
+my %iface;
+BEGIN{
+    my $tmp;
+    map{
+        $tmp = $1 if $_ =~ /^(\S+)/;
+        $iface{$tmp} = $1 if $tmp && $_ =~ /\baddr:(\d+\.\d+\.\d+\.\d+)\b/;
+
+    }`ifconfig`;
+};
 
 my %option = ( 'time' => 5, retry => 1 );
 
@@ -28,6 +39,9 @@ sub co
         my ( $url, $retry, $res )  =  map{ delete $opt{$_} }qw( url retry );
 
         my $ua = LWP::UserAgent->new( ssl_opts => { verify_hostname => 0 } );
+        $ua->proxy( [ 'http', 'https'], "$1://$2:$3"  )
+            if $opt{proxy} && $opt{proxy} =~ /^(\w+)=([^:]+)=(\d+)/;
+
         $ua->agent('Mozilla/9 [en] (Centos; Linux)');
         
         $ua->timeout( $opt{time} );
@@ -50,12 +64,16 @@ sub co
 sub trans
 {
     my ( $url, %opt ) = shift;
+
     if( $url =~ /^(.*)http(.+)/ )
     {
        %opt = split /:/, $1;
        $opt{url} = "http$2";
     }
     else { $opt{url} = "http://$url" }
+
+    $opt{url} =~ s/iface:(\w+)/$iface{$1}/
+        if $opt{url} =~ /http\w*:\/\/iface:(\w+)\b/ && $iface{$1};
 
     map{ $opt{$_} = $option{$_} unless $opt{$_} }keys %option;
 

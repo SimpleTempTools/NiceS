@@ -19,6 +19,7 @@ my %REGEX =
     'task abort' => 'taskabort',
     'sd.*timing out command' => 'timing',
     'Hardware Error' => 'Hardware',
+    'pblaze_pcie_interrupt' => 'flash',
 );
 
 sub co

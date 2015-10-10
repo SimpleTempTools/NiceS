@@ -1,0 +1,2 @@
+command: $RealBin/../../tools/ntpsync -d
+user: root

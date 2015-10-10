@@ -1,0 +1,10 @@
+---
+'qihoo.net':
+  - ntp1.qihoo.net
+  - ntp2.qihoo.net
+
+'.*':
+  - pool.ntp.org
+  - 0.asia.pool.ntp.org
+  - 1.asia.pool.ntp.org
+  - 2.asia.pool.ntp.org

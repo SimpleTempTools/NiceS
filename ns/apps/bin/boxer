@@ -1,0 +1,57 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Util::OptConf;
+use Data::Dumper;
+
+use NS::Apps::Boxer;
+
+use Sys::Hostname;
+
+$| ++;
+
+=head1 SYNOPSIS
+
+ $0
+
+ $0 help
+
+=cut
+
+
+$NS::Util::OptConf::THIS='apps';
+my %o = NS::Util::OptConf->load()->get( qw( verbose ) )->dump();
+
+my %macro;
+map { $macro{$1} = $2 if $_ =~ /^([^=]+)=(.*)/; }@ARGV;
+
+my $user = `logname`;
+$user ? ( chomp $user ) : ( $user = 'unkown' );
+
+my $boxer = NS::Apps::Boxer->new(
+    node => hostname, %o, macro => \%macro,
+    user => $user
+);
+
+$NS::Apps::Boxer::interactive = @ARGV ? 0 : 1;
+
+if( @ARGV )
+{
+    map{
+        $_ =~ s/^\s*//;
+        $boxer->do( $_ ) if defined $_;
+    } split /&&/,  join ' ', @ARGV;
+}
+else
+{
+    printf "welcome to %s\nboxer>", $user;
+    while( <> )
+    {
+        next unless $_;
+        chomp $_;
+        $_ =~ s/^\s*//;$_ =~ s/\s*$//;
+        $boxer->do( $_ ) if $_;
+        print "boxer>";
+    }
+}

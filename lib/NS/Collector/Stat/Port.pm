@@ -14,6 +14,15 @@ use Data::Dumper;
 #retry:3:time:3:input:hello:tcp:22
 
 my %option = ( 'time' => 5, retry => 1, host => '127.0.0.1' );
+my %iface;
+BEGIN{
+    my $tmp;
+    map{
+        $tmp = $1 if $_ =~ /^(\S+)/;
+        $iface{$tmp} = $1 if $tmp && $_ =~ /\baddr:(\d+\.\d+\.\d+\.\d+)\b/;
+
+    }`ifconfig`;
+};
 
 sub co
 {
@@ -59,6 +68,7 @@ sub trans
 
     map{ $opt{$_} = $option{$_} unless $opt{$_}; }keys %option;
 
+    $opt{host} = $iface{$opt{host}} if $iface{$opt{host}};
     return %opt;
 }
 

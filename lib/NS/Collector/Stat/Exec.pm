@@ -4,6 +4,10 @@ use strict;
 use warnings;
 use Carp;
 use POSIX;
+use File::Spec;
+use FindBin qw( $RealBin );
+
+our $path = "$RealBin/../exec";
 
 sub co
 {
@@ -15,7 +19,38 @@ sub co
 
     for my $exec ( keys %exec )
     {
-        my $stdout = `$exec`;
+        my $todo = $exec;
+
+        if( $exec =~ /^(.+)::(\w{32})::$/ )
+        {
+            my ( $cmd, $md5, $sudo ) = ( $1, $2 );
+            $sudo = $1 if $cmd =~ s/^(\w+)://;
+
+            if ( $cmd !~ /^\// )
+            {
+                unless( $path ) { warn "[WARN]undef path for exec.\n"; next; }
+                $cmd = File::Spec->join( $path, $cmd );
+            }
+
+            unless ( $cmd ){ warn"[WARN]no command defined on $exec.\n"; next; }
+            unless ( -x $cmd ){ warn"[WARN]$cmd is not an executable file.\n"; next; }
+           
+            my $filemd5 = `md5sum '$cmd'`;
+            unless( $filemd5 =~ /^(\w{32})\s+$cmd$/ )
+            {
+                warn"[WARN]get $cmd md5 fail.\n";next;
+            }
+            $filemd5 = $1;
+
+            if( $md5 ne $filemd5 )
+            {
+                warn"[WARN] $exec MD5 comparison failed <> $filemd5\n";next;
+            }
+
+            $todo = $sudo ? "sudo -u $sudo $cmd" : $cmd;
+        }
+
+        my $stdout = `$todo`;
         my $exit = $? == -1 ? -1 : $? >> 8;
         push @stat, [ $exec, $exit, $stdout||'' ];
     }

@@ -98,7 +98,7 @@ sub tcp
         unless( scalar @ready )
         {
             eval { $sock->shutdown( 2 ) };
-            return ( "timeout", $output );
+            return ( "alive", $output );
         }
 
         my $fh = shift @ready;

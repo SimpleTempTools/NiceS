@@ -6,6 +6,7 @@ use Carp;
 use POSIX;
 
 use LWP::UserAgent;
+use Encode;
 
 use Data::Dumper;
 
@@ -18,7 +19,6 @@ BEGIN{
     map{
         $tmp = $1 if $_ =~ /^(\S+)/;
         $iface{$tmp} = $1 if $tmp && $_ =~ /\baddr:(\d+\.\d+\.\d+\.\d+)\b/;
-
     }`ifconfig`;
 };
 
@@ -53,7 +53,7 @@ sub co
             $res = $ua->get( $url );
             last if $res->is_success;
         }
-        my $cont = $res->is_success ? $res->content : '';
+        my $cont = decode( 'utf8', $res->is_success ? $res->content : '' );
         push @http, [ $_, $res->code, $res->is_success, $res->status_line, $cont ];
 
     }

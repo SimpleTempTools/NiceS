@@ -92,6 +92,8 @@ sub co
                 {
                     $data->{"$_-$t"} = $v unless defined $data->{"$_-$t"} 
                 }qw( min max );
+                $data->{"min-$t"} = $v if $data->{"min-$t"} > $v;
+                $data->{"max-$t"} = $v if $data->{"max-$t"} < $v;
                 $data->{"avg-$t"} += $v;
             }
         }

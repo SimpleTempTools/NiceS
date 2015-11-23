@@ -14,6 +14,8 @@ use Thread::Queue;
 use NS::Collector::Push;
 use NS::Collector::Stat::Backup;
 
+use Time::HiRes qw( time sleep alarm stat );
+
 use Data::Dumper;
 
 sub new

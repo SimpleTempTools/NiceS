@@ -28,7 +28,7 @@ our $REGEX = qr/\{ (\w+) \}\{ ([^}]+) \}\{ ([^}]+) \}/x;
 our $REGEY = qr/\{ (\w+) \}\< ([^>]+) \>\{ ([^}]+) \}/x;
 
 my ( $keep, $NAME, %eval ) = ( 9, 'TEST' );
-my @statcol =  ( 1 .. $keep, 'stat', 'group', 'warnning' );
+my @statcol =  ( 1 .. $keep, 'stat', 'group', 'warnning', 'info' );
 
 my %FIXME = 
 (
@@ -52,7 +52,7 @@ my %FIXME =
 
 my %EMXIF = map{ my $t = $_; map{ $_ => $t }@{$FIXME{$t}} } keys %FIXME;
 
-my %BASE = map{ $_ => 1 }qw( IO SWAP DF MEM IFACE UPTIME CPU );
+my %BASE = map{ $_ => 1 }qw( IO SWAP DF MEM IFACE UPTIME CPU LOAD );
 
 sub new
 {
@@ -188,7 +188,7 @@ sub eval
             next;
         }
 
-        my ( $eval, $fail ) = $test;
+        my ( $eval, $fail, @info ) = $test;
 
         while ( $eval =~ /$REGEX/g )
         {
@@ -207,9 +207,13 @@ sub eval
 
             warn "{$1}{$2}{$3} = $tmp[$#tmp]\n" if -t STDIN;
 
+            push @info, substr $tmp[$#tmp], 0, 10 if defined $tmp[$#tmp];
+
             $eval =~ s/$REGEX/\$tmp[$#tmp]/;
         }
         
+        $eval{$test}{info} = join ':', @info;
+
         if( $fail )
         {
             $eval{$test}{warnning} = "no find data {$1}{$2}{$3}";

@@ -1,4 +1,4 @@
-package nices;
+package NS::nices;
 
 use strict;
 use warnings;
@@ -8,7 +8,7 @@ use warnings;
 nices - A suite of cluster administration tools and platforms
 
 =cut
-our $VERSION = 'v0.2.0';
+our $VERSION = '0.2.9';
 
 =head1 MODULES
 

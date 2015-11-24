@@ -5,6 +5,9 @@ use warnings;
 use Carp;
 use POSIX;
 
+use NS::nices;
+use NS::Collector;
+
 use NS::Collector::Stat::Time;
 use NS::Collector::Stat::Sar;
 use NS::Collector::Stat::DF;
@@ -69,8 +72,12 @@ sub new
     }
     else { $base = 1; }
 
+    my ( @data, %data ) = 
+        ( [ [qw(VERSION NICES COLLECTOR )],
+            [ 'value', $NS::nices::VERSION, $NS::Collector::VERSION ]
+          ] 
+        );
 
-    my ( @data, %data );
     if( $base )
     {
         push @data, NS::Collector::Stat::Uptime->co();

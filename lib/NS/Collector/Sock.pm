@@ -16,13 +16,7 @@ use threads::shared;
 
 our $DATA:shared;
 
-our %MAX = 
-(
-    listen => 50, 
-    thread => 1,  
-    maxconn => 300, 
-    maxbuf => 2 ** 12,
-);
+our %MAX = ( thread => 5,  maxconn => 5 );
 
 sub new
 {

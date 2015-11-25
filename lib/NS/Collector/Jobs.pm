@@ -12,6 +12,7 @@ use threads;
 use Thread::Queue;
 
 use NS::Collector::Push;
+use NS::Collector::Sock;
 use NS::Collector::Stat::Backup;
 
 use Time::HiRes qw( time sleep alarm stat );
@@ -25,6 +26,8 @@ sub new
     map{ confess "no $_\n" unless $this{$_} && -d $this{$_} }
         qw( conf code logs data );
    
+    NS::Collector::Sock->new( path => "$this{data}/output.sock" )->run();
+
     $NS::Collector::Stat::Backup::path = "$this{data}/backup";
 
     $this{config} = eval{ YAML::XS::LoadFile "$this{conf}/config" };
@@ -148,6 +151,7 @@ sub run
             eval{ 
                 YAML::XS::DumpFile "$this->{data}/.output", $data{data};
                 $push->push( $data{data} ) if $push;
+                $NS::Collector::Sock::DATA = YAML::XS::Dump $data{data};
             };
             
             system "mv '$this->{data}/.output' '$this->{data}/output'";

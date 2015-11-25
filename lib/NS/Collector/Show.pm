@@ -14,6 +14,9 @@ use Thread::Queue;
 use Data::Dumper;
 use POSIX;
 
+use Socket;
+use IO::Handle;
+
 sub new
 {
     my ( $class, %this ) = @_;
@@ -32,20 +35,37 @@ sub show
 
 sub curr
 {
-    my $this = shift;
-    my $data = "$this->{data}/output";
-    
-    unless( -f $data )
+    my ( $this, $data, $time ) = shift;
+
+    if( $this->{sock} )
     {
-        warn "no data\n"; return $this;
+        $data = "$this->{data}/output.sock";
+        unless( -S $data )
+        {
+            warn "no sock\n"; return $this;
+        }
+
+        socket(my $sock, PF_UNIX, SOCK_STREAM, 0);
+        connect($sock, sockaddr_un($data)) or die "Connect: $!\n";
+        $sock->autoflush(1);
+        $data = join '', my @buf = <$sock>;
+        close $sock;
+        $data = eval{ YAML::XS::Load $data };
+        if( $@ ) { warn "syntax err:$@\n"; return $this; }
+        $time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime );
     }
-
-    my $time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime(  (stat $data)[9] ) );
-
-    $data = eval{ YAML::XS::LoadFile $data };
-    if( $@ )
+    else
     {
-        warn "syntax err:$@\n"; return $this;
+        $data = "$this->{data}/output";
+        
+        unless( -f $data )
+        {
+            warn "no data\n"; return $this;
+        }
+
+        $data = eval{ YAML::XS::LoadFile $data };
+        if( $@ ) { warn "syntax err:$@\n"; return $this; }
+        $time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime( (stat $data)[9] ) );
     }
 
 #    unless ( $data = $data->{data} )

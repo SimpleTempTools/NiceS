@@ -8,6 +8,6 @@ use warnings;
 collecotr - A client for collector data
 
 =cut
-our $VERSION = '0.2.9';
+our $VERSION = '0.2.10';
 
 1;

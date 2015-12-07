@@ -284,13 +284,13 @@ sub eval
         map{ $eval->{$_} = $eval->{$_-1} if $eval->{$_-1} }reverse 1 .. $k;
 
         $eval->{'stat'} = 'ok';
-        if(  $eval->{0} && $eval->{0} eq 'err' )
-        {
+#        if(  $eval->{0} && $eval->{0} eq 'err' )
+#        {
             map{
                 $err -- if $eval->{$_} && $eval->{$_} eq 'err';
                 unless( $err ) { $eval->{'stat'} = 'err';next; }
             }1 .. $cnt;
-        }
+#        }
     }
 
     return $this;

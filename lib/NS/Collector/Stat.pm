@@ -217,7 +217,7 @@ sub eval
 
             warn "{$1}{$2}{$3} = $tmp[$#tmp]\n" if -t STDIN;
 
-            push @info, substr $tmp[$#tmp], 0, 10 if defined $tmp[$#tmp];
+            push @info, substr $tmp[$#tmp], 0, 100 if defined $tmp[$#tmp];
 
             $eval =~ s/$REGEX/\$tmp[$#tmp]/;
         }

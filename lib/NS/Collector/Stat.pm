@@ -183,7 +183,7 @@ sub info
 
 sub eval
 {
-    my ( $this, @stat, %stat ) = shift;
+    my ( $this, @stat, %stat, %info ) = shift;
     if( @_ ) { %eval = (); map{ $eval{$_}{group} = 'undef' }@_; }
 
     my ( $data, $table, $col, $row ) = @$this{ qw( data table col row ) };
@@ -222,7 +222,7 @@ sub eval
             $eval =~ s/$REGEX/\$tmp[$#tmp]/;
         }
         
-        $eval{$test}{info} = join ':', @info;
+        $info{$test} = join ':', @info;
 
         if( $fail )
         {
@@ -284,13 +284,15 @@ sub eval
         map{ $eval->{$_} = $eval->{$_-1} if $eval->{$_-1} }reverse 1 .. $k;
 
         $eval->{'stat'} = 'ok';
-#        if(  $eval->{0} && $eval->{0} eq 'err' )
-#        {
-            map{
-                $err -- if $eval->{$_} && $eval->{$_} eq 'err';
-                unless( $err ) { $eval->{'stat'} = 'err';next; }
-            }1 .. $cnt;
-#        }
+
+        for(1 .. $cnt)
+        {
+            $err -- if $eval->{$_} && $eval->{$_} eq 'err';
+            unless( $err ) { $eval->{'stat'} = 'err';last; }
+        }
+
+        $eval{$_}{info} = $info{$_}
+            if ( $eval->{0} eq 'err' ) || ( $eval->{0} eq 'ok' && $eval->{'stat'} eq 'ok');
     }
 
     return $this;

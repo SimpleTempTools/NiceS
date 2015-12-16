@@ -1,0 +1,27 @@
+#!/home/s/ops/perl/bin/perl
+
+use strict;
+use warnings;
+
+use NS::Multicast;
+use NS::Util::OptConf;
+
+$| ++;
+
+=head1 SYNOPSIS
+
+ $0 --recv 127.0.0.1:2000 --repo /data/path \
+    [--iface] eth0 [--verbose]
+
+=cut
+
+my $option = NS::Util::OptConf->load();
+my %o = $option->get( qw( recv=s repo=s iface=s verbose ) )->dump();
+
+$option->assert( qw( recv repo ) );
+
+$NS::Multicast::VERBOSE = $o{verbose};
+
+NS::Multicast->new( map{ $_ => $o{$_} }qw( recv iface ) )
+    ->recv( $o{repo} );
+

@@ -18,7 +18,7 @@ my %REGEX =
     'mpt2.*log_info.*originator.*code.*sub_code' => 'mpt2',
     'task abort' => 'taskabort',
     'sd.*timing out command' => 'timing',
-    'Hardware Error' => 'Hardware',
+    'Hardware Error(?!]: Machine check events logged)' => 'Hardware',
     'pblaze_pcie_interrupt' => 'flash',
 );
 

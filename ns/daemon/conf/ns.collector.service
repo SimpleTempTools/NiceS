@@ -1,4 +1,4 @@
 ---
-before: 'export PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin:/usr/kerberos/sbin:/usr/kerberos/bin:/usr/bin:/bin:/usr/local/bin:/home/s/bin'
+before: 'ulimit -c 0;export PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin:/usr/kerberos/sbin:/usr/kerberos/bin:/usr/bin:/bin:/usr/local/bin:/home/s/bin'
 command: $RealBin/../../collector/service/collector
 user: root

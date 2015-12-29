@@ -27,6 +27,13 @@ sub co
     for my $file ( grep{ -f $_ } glob $path )
     {
         my $time = ( stat $file )[9];
+
+        if( $file =~ /\.core$/ )
+        {
+            if( $ct - $time > 432000 ) { unlink $file; next; }
+            chmod 0644, $file;
+        }
+
         my $name = File::Basename::basename( $file );
         $name =~ s/\d+/0/g;
 

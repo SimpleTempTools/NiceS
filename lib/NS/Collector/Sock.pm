@@ -76,13 +76,15 @@ sub run
             if ( my ( $server, $client ) = $select->can_read( 0.5 ) )
             {
                 accept $client, $server;
-                my $cfileno = fileno $client;
     
                 if ( $conn[0]->pending > $MAX{maxconn} )
                 {
                     close $client;
                     warn "connection limit reached\n";
+                    next;
                 }
+
+                my $cfileno = fileno $client;
                 
                 $conn{$cfileno} = $client;
                 printf $status, scalar keys %conn;

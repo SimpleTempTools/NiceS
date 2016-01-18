@@ -7,7 +7,7 @@ use threads;
 use Thread::Queue;
 use Time::HiRes qw( time sleep alarm stat );
 
-use NS::Util::Logger;
+use NS::Util::Say;
 
 =head1 SYNOPSIS
 
@@ -69,7 +69,7 @@ sub run
     my $timeout = $run{timeout};
     my ( $w8, $code ) = @$self{ 'weight', 'code' };
 
-    $log = NS::Util::Logger->new( $log );
+    $log = NS::Util::Say->new( $log );
     $run{log} = sub { $log->say( @_ ) };
 
     my ( @w8queue, %w8 ) = map { Thread::Queue->new() } 0, 1;

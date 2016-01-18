@@ -80,7 +80,7 @@ sub curr
         {
             warn "syntax err:$_\n";next;
         }
-        map{ map{ printf "$time\t%s\n", join "\t", @$_ }@$_;print "\n"; }@$stat;
+        map{ map{ printf "$time\t%s\n", join "\t", map{$_||''}@$_ }@$_;print "\n"; }@$stat;
         printf "\n%s\n\n", join ',', map{ $_->[0][0] }@$stat;
     }
     

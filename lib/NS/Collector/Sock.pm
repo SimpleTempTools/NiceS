@@ -53,7 +53,14 @@ sub run
             {
                 if( open my $client, '+<&=', $fileno )
                 {
-                    $this->_server( $client );
+                    eval{
+                        alarm 5;
+                        $this->_server( $client );
+                        alarm 0;
+                    };
+                    alarm 0;
+                    warn "_server timeout:$@\n" if $@;
+
                     close $client;
                 }
 

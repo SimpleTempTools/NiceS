@@ -1,0 +1,41 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+use File::Spec;
+use Data::Dumper;
+
+use NS::DeployX;
+use NS::Util::Sudo;
+use NS::Util::OptConf;
+
+NS::Util::Sudo->sudo();
+
+$| ++;
+
+$NS::Util::OptConf::THIS = 'deployx';
+
+my @argv = @ARGV;
+my %o = NS::Util::OptConf->load()->get( qw( check unlog ) )->dump();
+
+exit 0 unless my $name = shift;
+
+if( $o{unlog} || $o{check} )
+{
+    my $deploy = NS::DeployX->new( 
+        name => $name,
+        code => $o{code},
+        conn => NS::Util::DBConn->new( $o{conn} ),
+    );
+
+    exit 0 if $o{check};
+
+    $deploy->run();
+}
+else
+{
+    my $log = POSIX::strftime( "$name.%Y-%m-%d_%H:%M:%S", localtime );
+    my $path = File::Spec->join( $o{logs}, $name );
+
+    system sprintf "ln -fsn '%s' '%s'" , $log, $path;
+    exec sprintf "$0 --unlog '%s' %s %s", join( "' '", @argv ), $ENV{TERM} ? '|tee' : '>', $path;
+}

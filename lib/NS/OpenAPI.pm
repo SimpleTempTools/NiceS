@@ -30,10 +30,10 @@ sub _get
 
     my $res = $self->{ua}->get( "$self->{addr}$uri" );
     my $cont = $res->content;
-    return +{ stat => 0, info => $res->content } unless $res->is_success;
+    return +{ stat => JSON::false, info => $res->content } unless $res->is_success;
 
     my $data = eval{JSON::from_json $cont};
-    return $@ ? +{ stat => 0, info => $@ } : $data;
+    return $@ ? +{ stat => JSON::false, info => $@ } : $data;
 }
 
 sub get
@@ -50,10 +50,10 @@ sub _post
     my $res = $self->{ua}->post( "$self->{addr}$uri", 
           Content => JSON::to_json(\%form), 'Content-Type' => 'application/json' );
     my $cont = $res->content;
-    return +{ stat => 0, info => $res->content } unless $res->is_success;
+    return +{ stat => JSON::false, info => $res->content } unless $res->is_success;
 
     my $data = eval{JSON::from_json $cont};
-    return $@ ? +{ stat => 0, info => $@ } : $data;
+    return $@ ? +{ stat => JSON::false, info => $@ } : $data;
 
 }
 

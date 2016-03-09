@@ -1,0 +1,85 @@
+  
+<!-- 
+    Credit goes to the Ruby on Rails team for this page 
+    has been heavily based on the default Rails page that is 
+    built with a scaffolded application.
+
+    Thanks a lot to them for their work.
+
+    See Ruby on Rails if you want a kickass framework in Ruby:
+    http://www.rubyonrails.org/
+-->
+
+<div id="page">
+
+      <div id="content">
+        <div id="header">
+          <h1>deploy openapi</h1>
+        </div>
+
+        <div id="getting-started">
+          <div id="about-content" style="display: none;">
+            <table>
+                <tbody>
+                <tr>
+                    <td>Perl version</td>
+                    <td><tt><% perl_version %></tt></td>
+                </tr>
+                <tr>
+                    <td>Dancer version</td>
+                    <td><tt><% dancer_version %></tt></td>
+                </tr>
+                <tr>
+                    <td>Backend</td>
+                    <td><tt><% settings.apphandler %></tt></td>
+                </tr>
+                <tr>
+                    <td>Appdir</td>
+                    <td><tt>/home/lijinfeng/openapi</tt></td>
+                </tr>
+                <tr>
+                    <td>Template engine</td>
+                    <td><tt><% settings.template %></tt></td>
+                </tr>
+                <tr>
+                    <td>Logger engine</td>
+                    <td><tt><% settings.logger %></tt></td>
+                </tr>
+                <tr>
+                    <td>Running environment</td>
+                    <td><tt><% settings.environment %></tt></td>
+                </tr>
+                </tbody>
+            </table>
+          </div>
+
+    <script type="text/javascript">
+    $('#about_env_link').click(function() {
+        $('#about-content').slideToggle('fast', function() {
+            // ok
+        });
+        return( false );
+    });
+    </script>
+
+
+          <ol>          
+            <li>
+              <h2>获取发布流程列表</h2>
+              <p> /list </p>
+            </li>
+
+            <li>
+              <h2>获取发布流程的配置信息</h2>
+              <p> /conf/get/:name  ( :name 为发布流程名称 )</p>
+            </li>
+
+            <li>
+                <h2>获取一个发布流程的编号</h2>
+                <p> /cache/get/:name/:id  ( :name 发布流程名  :id 发布流程编号 ) </p>
+            </li>
+
+          </ol>
+        </div>
+      </div>
+    </div>

@@ -66,7 +66,7 @@ any '/:name/:type/' => sub {
 
     return +{ 
         stat =>  $JSON::true,
-        name => [ map{ basename $_ } glob "$ROOT/$name/$type/*" ]
+        data => [ map{ basename $_ } glob "$ROOT/$name/$type/*" ]
     };
 };
 
@@ -84,7 +84,7 @@ any '/:name/:type/:task' => sub {
         eval{ YAML::XS::DumpFile $file, $param->{data}; };
 
         return  $@ ? +{ stat => $JSON::false, info => $@ }: 
-                     +{ stat => $JSON::true, info => '' };
+                     +{ stat => $JSON::true,  info => '' };
     }
     else
     {

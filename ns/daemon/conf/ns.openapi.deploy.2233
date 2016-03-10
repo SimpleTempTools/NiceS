@@ -1,0 +1,3 @@
+---
+command: $RealBin/../../openapi/bin/openapi_ctrl --port 2236
+user: root

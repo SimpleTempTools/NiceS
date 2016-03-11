@@ -25,7 +25,7 @@ sub execute
 sub check
 {
     my %param = @_;
-    return grep{ $_ !~/^[\w_\.-]+$/ }map{ ref $_ ? @$_: ( $_ ) }values %param;
+    return grep{ $_ !~/^[\w _\.-]*$/ }map{ ref $_ ? @$_: ( $_ ) }values %param;
 }
 
 set serializer => 'JSON';

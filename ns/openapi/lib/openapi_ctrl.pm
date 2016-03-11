@@ -50,7 +50,7 @@ any '/stuck/:name' => sub {
     die "format error\n" if check( %$param );
 
     my @where = ( "ctrl!='exclude'", "name='$param->{name}'" );
-    map{ push @where, "$_='$param->{step}'" if $param->{step} }qw( step node );
+    map{ push @where, "$_='$param->{$_}'" if $param->{$_} }qw( step node );
 
     my $r = eval{ query( 
                     sprintf "select * from ctrl where %s", join ' and ', @where 
@@ -64,7 +64,7 @@ any '/resume/:name' => sub {
     die "format error\n" if check( %$param );
 
     my @where = ( "ctrl!='exclude'", "name='$param->{name}'" );
-    map{ push @where, "$_='$param->{step}'" if $param->{step} }qw( step node );
+    map{ push @where, "$_='$param->{$_}'" if $param->{$_} }qw( step node );
 
     my $r = eval{ execute( sprintf "delete from ctrl where %s", join ' and ', @where )};
     return $@ ? +{ stat => $JSON::false, info => $@ } : 

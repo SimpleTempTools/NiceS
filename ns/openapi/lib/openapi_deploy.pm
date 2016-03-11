@@ -27,7 +27,7 @@ any '/list' => sub {
 
 any '/create' => sub {
     my $name = params()->{name};
-    die "format error\n" unless $name && $name =~ /^[\w_]+$/;
+    die "format error\n" unless $name && $name =~ /^[\w_:-]+$/;
 
     return +{ 
         stat =>  system( "mkdir -p '$ROOT/$name'/{conf,logs}" ) 
@@ -38,7 +38,7 @@ any '/create' => sub {
 any '/:name/:type' => sub {
     my $param = params();
     my ( $name, $type ) = @$param{qw( name type )};
-    die "format error\n" unless $name =~ /^[\w_]+$/ && grep{ $_ eq $type }qw( main mark info );
+    die "format error\n" unless $name =~ /^[\w_:-]+$/ && grep{ $_ eq $type }qw( main mark info );
 
     my $file = "$ROOT/$name/$type";
 
@@ -62,7 +62,7 @@ any '/:name/:type/' => sub {
     my $param = params();
 
     my ( $name, $type ) = @$param{qw( name type )};
-    die "format error\n" unless $name =~ /^[\w_]+$/ && grep{ $_ eq $type }qw( conf logs );
+    die "format error\n" unless $name =~ /^[\w_:-]+$/ && grep{ $_ eq $type }qw( conf logs );
 
     return +{ 
         stat =>  $JSON::true,
@@ -75,7 +75,7 @@ any '/:name/:type/:task' => sub {
     my $param = params();
 
     my ( $name, $type, $task ) = @$param{qw( name type task )};
-    die "format error\n" unless $name =~ /^[\w_]+$/ && $task =~ /^[\w_:]+$/ 
+    die "format error\n" unless $name =~ /^[\w_:-]+$/ && $task =~ /^[\w_:-]+$/ 
                                      && grep{ $_ eq $type }qw( conf logs );
 
     my $file = "$ROOT/$name/$type/$task";

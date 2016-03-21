@@ -1,11 +1,16 @@
-package NS::Deploy::Jobs;
+package NS::DeployX::Jobs;
 use strict;
 use warnings;
+
 use Carp;
-
+use AnyEvent;
 use NS::Hermes;
+use Time::HiRes qw( time );
 
-our %CONF = ( redo => 0, retry => 0, timeout => 0, goon => '100%' );
+use threads;
+use Thread::Queue;
+
+our %CONF = ( redo => 0, retry => 0, timeout => 0, goon => '100%', max => 0 );
 
 sub new
 {
@@ -27,8 +32,8 @@ sub run
         = @$this{qw( name step conf ctrl code cache )};
 
     map { $conf->{$_} = $CONF{$_} unless defined $conf->{$_} }keys %CONF;
-    my ( $redo, $retry, $title, $delay, $sleep, $repeat, $timeout, $grep, $fix, $goon ) 
-        = @$conf{qw( redo retry title delay sleep repeat timeout grep fix goon )};
+    my ( $redo, $retry, $title, $delay, $sleep, $repeat, $timeout, $grep, $fix, $goon, $max ) 
+        = @$conf{qw( redo retry title delay sleep repeat timeout grep fix goon max )};
 
     $goon = ( $goon * scalar @node ) / 100 if $goon =~ s/%$//;
 
@@ -43,7 +48,7 @@ sub run
         print '#' x 75 ,"\n";
         printf "%s ...\n", $tryfix{$i} ? 'tryfix' : $i ? "redo #$i" : 'do';
  
-        my ( $try, $error ) = $tryfix{$i} ? $tryfix{$i} -1 : $retry;
+        my ( $try, $error ) = ( $tryfix{$i} ? $tryfix{$i} -1 : $retry );
         for my $j ( 0 .. $try )
         {
             print '-' x 75 ,"\n";
@@ -63,7 +68,7 @@ sub run
             @node = grep{ ! $succ{$_} }grep{ ! $excluded{$_} }@node;
             @node = grep{ $cache->{succ}{$grep}{$_} }@node if $grep;
 
-#            last if ! @node && $tryfix{$i};
+            last if ! @node && $tryfix{$i};
            
 
             printf "time: %s\nnode[%s]: %s\n",
@@ -73,25 +78,63 @@ sub run
         
             sleep $delay if $delay && print "delay $delay sec ...\n";
     
-    
             my %s;
-            eval{
-                alarm $timeout;
-                %s = &$code
-                (
-                    name => $name,
-                    step => $step,
-                    title => $title,
-                    param => $conf->{param},
-                    batch => \@node,
-                    cache => $cache,
-                );
-               alarm 0;
-            };
-            alarm 0;
-            $error = $@ || '';
+            unless( $max )
+            {
+                eval{
+                    alarm $timeout;
+                    %s = &$code
+                    (
+                        name => $name,
+                        step => $step,
+                        title => $title,
+                        param => $conf->{param},
+                        batch => \@node,
+                        cache => $cache,
+                    );
+                   alarm 0;
+                };
+                alarm 0;
+                $error = $@ || '';
+            }
+            else
+            {
+                 my @conn = map { Thread::Queue->new } 0 .. 1;
+                 my %node = map{$_ => 1 }@node;
+                 $conn[0]->enqueue( @node );
+                 my $m = ( $max > scalar @node ) ? scalar @node: $max;
+                 map
+                 {
+                     threads::async
+                     {
+                         while ( my $node = $conn[0]->dequeue() )
+                         {
+                             my $stat = &$code(
+                                 param => $conf->{param},
+                                 node => $node,
+                             );
+                             print "$node, $stat\n";
+                             $conn[1]->enqueue( $node, $stat );
+                         }
+                     }->detach()
+                 } 1 .. $m;
 
-            map{ $succ{$_} = $s{$_} }grep{ $node{$_} }keys %s;
+                 while ( 1 )
+                 {
+                     while ( $conn[1]->pending )
+                     {
+                         my ( $node, $stat ) = $conn[1]->dequeue( 2 );
+                         delete $node{$node};
+                         $s{$node} = 1 if $stat;
+                     }
+                     sleep 0.3;
+                     last unless %node;
+                 }
+                 $error = '';
+            }
+
+
+            map{ my $t = $_; $t =~ s/\./=/g; $succ{$t} = $s{$_} }grep{ $node{$_} }keys %s;
 
             $error = sprintf "goon: $goon succ: %s err:$error", scalar keys %succ
                 if keys %succ < $goon;

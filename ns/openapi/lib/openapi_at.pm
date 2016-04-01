@@ -43,7 +43,7 @@ sub check
 sub checkenv
 {
     my $env = shift;
-    die "110 fail" unless  my $remoteip = $env->{'HTTP_X_REAL_IP'}; # || $env{REMOTE_ADDR};
+    die "110 fail" unless  my $remoteip = $env->{'HTTP_X_REAL_IP'} || $env->{REMOTE_ADDR};
     die "code: 110" unless $allowip{ $remoteip};
 }
 

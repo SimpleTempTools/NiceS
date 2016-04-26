@@ -24,6 +24,7 @@ use NS::Collector::Stat::Watch;
 use NS::Collector::Stat::Backup;
 use NS::Collector::Stat::Coredump;
 use NS::Collector::Stat::Output;
+use NS::Collector::Stat::Ping;
 use NS::Hermes;
 
 use Data::Dumper;
@@ -96,7 +97,7 @@ sub new
 
     my %test;
     map{ my $t = $_; $test{$t} = [ grep{ /^{$t}/ }keys %todo ] }
-        qw( PROC EXEC CALL HTTP PORT BACKUP WATCH OUTPUT );
+        qw( PROC EXEC CALL HTTP PORT BACKUP WATCH OUTPUT PING );
 
     push @data, NS::Collector::Stat::Proc->co( @{$test{PROC}} ) if $base || @{$test{PROC}};
     push @data, NS::Collector::Stat::Exec->co( @{$test{EXEC}} ) if $base || @{$test{EXEC}};
@@ -106,6 +107,7 @@ sub new
     push @data, NS::Collector::Stat::Watch->co( @{$test{WATCH}} ) if $base || @{$test{WATCH}};
     push @data, NS::Collector::Stat::Backup->co( @{$test{BACKUP}} ) if $base || @{$test{BACKUP}};
     push @data, NS::Collector::Stat::Output->co( @{$test{OUTPUT}} ) if $base || @{$test{OUTPUT}};
+    push @data, NS::Collector::Stat::Ping->co( @{$test{PING}} ) if $base || @{$test{PING}};
 
     for ( 0 .. $#data )
     {

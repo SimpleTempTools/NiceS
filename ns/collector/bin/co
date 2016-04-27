@@ -26,6 +26,6 @@ $NS::Util::OptConf::THIS = 'collector';
 
 =cut
 
-my %o = NS::Util::OptConf->load()->get( 'sock' )->dump();
+my %o = NS::Util::OptConf->load()->get( qw( sock ring ) )->dump();
 
 NS::Collector::Show->new( %o )->show( @ARGV );

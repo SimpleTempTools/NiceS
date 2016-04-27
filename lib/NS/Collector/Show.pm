@@ -94,7 +94,7 @@ sub curr
             next unless ref $s eq 'ARRAY';
             my ( $d, $t ) = @$s;
             next unless ref $d eq 'ARRAY';
-            map{print "$t\t"; map{ print "$_\t" }@$_; print "\n";}@$d;
+            map{print "$t\t"; map{ print $_||'',"\t" }@$_; print "\n";}@$d;
         }
     }
     return $this;

@@ -11,10 +11,7 @@ use IO::Select;
 
 use NS::Util::Sysrw;
 use YAML::XS;
-
-use threads::shared;
-
-our $DATA:shared;
+use File::Basename;
 
 our %MAX = ( thread => 5,  maxconn => 5 );
 
@@ -31,6 +28,7 @@ sub new
     die "bind (path $path): $!\n" unless bind $socket, $addr;
     die "listen: $!\n" unless listen $socket, SOMAXCONN;
 
+    $this{name} = File::Basename::basename $path;
     $this{sock} = $socket;
 
     bless \%this, ref $class || $class;
@@ -42,7 +40,7 @@ sub run
 
     my $select = new IO::Select( $this->{sock} );
     my @conn = map { Thread::Queue->new } 0 .. 1;
-    my $status = "sock: status: \%s/$MAX{thread}\n";
+    my $status = "$this->{name}: status: \%s/$MAX{thread}\n";
     printf $status, 0;
 
     map
@@ -99,12 +97,6 @@ sub run
             }
         }
     }->detach();
-}
-
-sub _server
-{
-    my ( $this, $socket ) = @_;
-    NS::Util::Sysrw->write( $socket, $DATA || '---' );
 }
 
 1;

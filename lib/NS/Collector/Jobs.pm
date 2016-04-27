@@ -12,7 +12,8 @@ use threads;
 use Thread::Queue;
 
 use NS::Collector::Push;
-use NS::Collector::Sock;
+use NS::Collector::Sock::Data;
+use NS::Collector::Sock::Ring;
 use NS::Collector::Stat::Backup;
 
 #use Time::HiRes qw( time sleep alarm stat );
@@ -26,7 +27,8 @@ sub new
     map{ confess "no $_\n" unless $this{$_} && -d $this{$_} }
         qw( conf code logs data );
    
-    NS::Collector::Sock->new( path => "$this{data}/output.sock" )->run();
+    NS::Collector::Sock::Data->new( path => "$this{data}/output.sock" )->run();
+    NS::Collector::Sock::Ring->new( path => "$this{data}/ring.sock" )->run();
 
     $NS::Collector::Stat::Backup::path = "$this{data}/backup";
 
@@ -128,6 +130,7 @@ sub run
         {
             my ( $type, $name, $data ) = $queue->dequeue( 3 );
             $data{$type}{$name} = YAML::XS::Load $data;
+            NS::Collector::Sock::Ring::push( @{$data{$type}{$name}} ) if $type eq 'data';
         }
 
         my $uptime = $data{'collector'}{uptime} = time - $time;
@@ -151,7 +154,7 @@ sub run
             eval{ 
                 YAML::XS::DumpFile "$this->{data}/.output", $data{data};
                 $push->push( $data{data} ) if $push;
-                $NS::Collector::Sock::DATA = YAML::XS::Dump $data{data};
+                $NS::Collector::Sock::Data::DATA = YAML::XS::Dump $data{data};
             };
             
             system "mv '$this->{data}/.output' '$this->{data}/output'";

@@ -37,9 +37,9 @@ sub curr
 {
     my ( $this, $data, $time ) = shift;
 
-    if( $this->{sock} )
+    if( $this->{sock} || $this->{ring} )
     {
-        $data = "$this->{data}/output.sock";
+        $data = sprintf "$this->{data}/%s.sock",  $this->{sock} ? 'output' : 'ring';
         unless( -S $data )
         {
             warn "no sock\n"; return $this;
@@ -73,17 +73,30 @@ sub curr
 #        warn "no data in yaml\n";return $this;
 #    }
 
-    for( keys %$data )
+    if( ref $data eq 'HASH' )
     {
-        my $stat = $data->{$_};
-        if( ref $stat ne 'ARRAY' )
+        for( keys %$data )
         {
-            warn "syntax err:$_\n";next;
+            my $stat = $data->{$_};
+            if( ref $stat ne 'ARRAY' )
+            {
+                warn "syntax err:$_\n";next;
+            }
+            map{ map{ printf "$time\t%s\n", join "\t", map{$_||''}@$_ }@$_;print "\n"; }@$stat;
+            printf "\n%s\n\n", join ',', map{ $_->[0][0] }@$stat;
         }
-        map{ map{ printf "$time\t%s\n", join "\t", map{$_||''}@$_ }@$_;print "\n"; }@$stat;
-        printf "\n%s\n\n", join ',', map{ $_->[0][0] }@$stat;
     }
-    
+    else
+    {
+        for ( @$data )
+        {
+            my $s = YAML::XS::Load $_;
+            next unless ref $s eq 'ARRAY';
+            my ( $d, $t ) = @$s;
+            next unless ref $d eq 'ARRAY';
+            map{print "$t\t"; map{ print "$_\t" }@$_; print "\n";}@$d;
+        }
+    }
     return $this;
 }
 

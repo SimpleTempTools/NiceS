@@ -68,9 +68,10 @@ sub curr
             warn "no data\n"; return $this;
         }
 
+        $time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime( (stat $data)[9] ) );
+
         $data = eval{ YAML::XS::LoadFile $data };
         if( $@ ) { warn "syntax err:$@\n"; return $this; }
-        $time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime( (stat $data)[9] ) );
     }
 
 #    unless ( $data = $data->{data} )

@@ -21,7 +21,12 @@ sub new
 {
     my ( $class, %this ) = @_;
 
-    map{ confess "no $_\n" unless $this{$_} && -d $this{$_} }qw( logs data );
+    $this{name} = '' unless $this{name} && $this{name} =~ /^[\w_]+$/;
+
+    map{
+        $this{$_} = "$this{$_}_$this{name}" if $this{name}; 
+        confess "no $_\n" unless $this{$_} && -d $this{$_};
+    }qw( logs data );
 
     return bless \%this, ref $class || $class;
 }

@@ -25,12 +25,13 @@ use NS::Collector::Stat::Backup;
 use NS::Collector::Stat::Coredump;
 use NS::Collector::Stat::Output;
 use NS::Collector::Stat::Ping;
+use NS::Collector::Stat::Cache;
 use NS::Hermes;
 
 use Data::Dumper;
 
-our $REGEX = qr/\{ (\w+) \}\{ ([^}]+) \}\{ ([^}]+) \}/x;
-our $REGEY = qr/\{ (\w+) \}\< ([^>]+) \>\{ ([^}]+) \}/x;
+our $REGEX = qr/\{ ([\w:_]+) \}\{ ([^}]+) \}\{ ([^}]+) \}/x;
+our $REGEY = qr/\{ ([\w:_]+) \}\< ([^>]+) \>\{ ([^}]+) \}/x;
 
 my ( $keep, $NAME, %eval ) = ( 9, 'TEST' );
 my @statcol =  ( 1 .. $keep, 'stat', 'group', 'warnning', 'info' );
@@ -68,8 +69,8 @@ sub new
     if( my $test = $self{test} )
     {
         map{ 
-            map{ map{ $todo{$_} = 1 } $_ =~ /({\w+}{[^}]+}{[^}]+})/g;} @$_; 
-            map{ map{ $todo{$_} = 1 } $_ =~ /({\w+}<[^>]+>{[^}]+})/g;} @$_; 
+            map{ map{ $todo{$_} = 1 } $_ =~ /({[\w:_]+}{[^}]+}{[^}]+})/g;} @$_; 
+            map{ map{ $todo{$_} = 1 } $_ =~ /({[\w:_]+}<[^>]+>{[^}]+})/g;} @$_; 
         }values %$test;
         map{ my $g = $_; map{ $eval{$_}{group} = $g }@{$test->{$g}}}keys %$test;
 
@@ -99,6 +100,8 @@ sub new
     map{ my $t = $_; $test{$t} = [ grep{ /^{$t}/ }keys %todo ] }
         qw( PROC EXEC CALL HTTP PORT BACKUP WATCH OUTPUT PING );
 
+    map{ my $t = $_; $test{$t} = [ grep{ /^{$t:[\w:_]+}/ }keys %todo ] } qw( CACHE );
+
     push @data, NS::Collector::Stat::Proc->co( @{$test{PROC}} ) if $base || @{$test{PROC}};
     push @data, NS::Collector::Stat::Exec->co( @{$test{EXEC}} ) if $base || @{$test{EXEC}};
     push @data, NS::Collector::Stat::Call->co( @{$test{CALL}} ) if $base || @{$test{CALL}};
@@ -108,6 +111,7 @@ sub new
     push @data, NS::Collector::Stat::Backup->co( @{$test{BACKUP}} ) if $base || @{$test{BACKUP}};
     push @data, NS::Collector::Stat::Output->co( @{$test{OUTPUT}} ) if $base || @{$test{OUTPUT}};
     push @data, NS::Collector::Stat::Ping->co( @{$test{PING}} ) if $base || @{$test{PING}};
+    push @data, NS::Collector::Stat::Cache->co( @{$test{CACHE}} ) if $base || @{$test{CACHE}};
 
     for ( 0 .. $#data )
     {
@@ -124,7 +128,8 @@ sub new
         my @d;
         $d[0][0] = $t; $d[1][0] = 'value';   
         map{ my $i = $_; push @{$d[$i]}, map{ $data{$_} ? @{$data{$_}[$i]}: () }@{$FIXME{$t}} } 0 .. 1;
-        push @data, \@d;
+
+        push @data, \@d if @{$d[0]} > 1;
     }
 
 

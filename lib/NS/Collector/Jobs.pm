@@ -24,15 +24,19 @@ sub new
 {
     my ( $class, %this ) = @_;
 
+    $this{jobs} = '' unless $this{jobs} && $this{jobs} =~ /^[\w_]+$/;
+    map{ $this{$_} = "$this{$_}_$this{jobs}" if $this{jobs} }qw( data logs );
     map{ confess "no $_\n" unless $this{$_} && -d $this{$_} }
         qw( conf code logs data );
    
+    $this{conf} = sprintf "$this{conf}/config%s", $this{jobs} ? "_$this{jobs}" : '';
+
     NS::Collector::Sock::Data->new( path => "$this{data}/output.sock" )->run();
     NS::Collector::Sock::Ring->new( path => "$this{data}/ring.sock" )->run();
 
     $NS::Collector::Stat::Backup::path = "$this{data}/backup";
 
-    $this{config} = eval{ YAML::XS::LoadFile "$this{conf}/config" };
+    $this{config} = eval{ YAML::XS::LoadFile $this{conf} };
     confess "load config fail:$@\n" if $@;
 
     $this{md5} = Digest::MD5->new->add( YAML::XS::Dump $this{config} )->hexdigest;
@@ -55,7 +59,7 @@ sub run
     { 
         while( sleep 10 )
         {
-            my $conf = eval{  YAML::XS::LoadFile "$this->{conf}/config" };
+            my $conf = eval{  YAML::XS::LoadFile $this->{conf} };
             if( $@ ){ warn "load config fail. exit(1).\n"; exit 1 };
 
             my $curr =  Digest::MD5->new->add( YAML::XS::Dump $conf )->hexdigest;
@@ -139,7 +143,7 @@ sub run
         {
             $prev = $curr;
 
-            $data{'collector'}{cfgtime} = time - ( stat "$this->{conf}/config" )[9];
+            $data{'collector'}{cfgtime} = time - ( stat $this->{conf} )[9];
             my ( @t, @collector ) = qw( uptime cfgtime);
             push my @coll, [ 'TASK', @t ];
             push @coll, [ 'value', map{ $data{'collector'}{$_} }@t ];

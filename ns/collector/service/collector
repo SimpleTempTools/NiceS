@@ -15,7 +15,7 @@ $| ++;
 $NS::Util::OptConf::THIS = 'collector';
 my %o = NS::Util::OptConf->load()->dump();
 
-my $c = NS::Collector::Jobs->new( %o );
+my $c = NS::Collector::Jobs->new( %o, jobs => shift );
 
 print "start...\n";
 sleep 5;

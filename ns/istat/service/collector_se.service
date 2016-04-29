@@ -1,0 +1,70 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Util::OptConf;
+use NS::Util::WorkerStat;
+use Sys::Hostname;
+use POSIX;
+use URI::Escape;
+use File::Basename;
+
+my $jobs = shift;
+die "jobs name err" unless $jobs && $jobs =~ /^\w+$/;
+
+my ( $file, $curl, $server, %error ) = 
+(
+    "/home/s/ops/data/collector_$jobs/output",
+    'curl --connect-timeout 7 -m 7',
+    'uwatch.se.istat.net'
+);
+
+my %util = NS::Util::OptConf->load()->get()->dump( 'util' );
+my $conn = NS::Util::WorkerStat->new( conn => "$util{conf}/conn.workerstat" );
+
+my $host = sprintf "%s.%s", ( basename $0 ),split '\.',hostname;
+
+die "no file" unless -f $file;
+$error{"output timeout"} = 1 if ( stat $file )[9] + 65 < time;
+
+my $data = eval{ YAML::XS::LoadFile $file };
+
+my @table = map{@$_}values %$data;
+
+my @task = grep{ $_->[0][0] eq 'TASK' }@table;
+my @test = grep{ $_->[0][0] eq 'TEST' }@table;
+
+for my $task ( @task )
+{
+    my %col;
+    my @title = @{$task->[0]};
+    map{ $col{$task->[0][$_]} = $_ }1.. @title - 1;
+    next unless $col{err} && $col{last};
+    for my $t ( splice @$task, 1  )
+    {
+        my ( $name, $err, $last ) = 
+            ( $t->[0], map{ $t->[$col{$_}] }qw( err last ));
+        $error{"$name timeout"} = 1 if $last + 65 < time;
+        $error{"$name err"} = 1 if $err;
+    }
+}
+
+for my $test ( @test )
+{
+    my %col;my @title = @{$test->[0]};
+    map{ $col{$test->[0][$_]} = $_ }1.. @title - 1;
+    for my $t ( splice @$test, 1 )
+    {
+        next if $t->[$col{stat}] eq 'ok';
+        if( $t->[$col{stat}] eq 'warn' ) { $error{"test warn"} = 1; next; }
+        my ( $node, $mesg ) = map{ uri_escape( $_ ) }( $t->[$col{group}], $t->[0]);
+        my $cmd = "$curl 'http://$server/esi/watch_esi:data_record?item=all.$jobs&node=$node&mesg=$mesg'";
+        print "$cmd\n";
+        my $o = `$cmd 2>/dev/null`;
+        $error{"push to uwatch err"} = 1 if $o ne 'ok' 
+    }
+
+}
+
+my @err = keys %error;
+$conn->set( 'nices', $host, @err ? join ( ":", @err ) : 'ok' );

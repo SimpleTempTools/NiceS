@@ -108,22 +108,22 @@ sub run
                 my $time = time;
                 eval
                 {
-                    alarm $timeout;
                     my $data = &$code( %$param );
                     $queue->enqueue( 'data', $_, YAML::XS::Dump $data );
-                    alarm 0;
                 };
-                alarm 0;
                 $queue->enqueue( 'code', $_, 
                     YAML::XS::Dump [ time - $time, $time, $@ ||'' ] 
                 );
 
-                sleep $interval;
+                my $due = $time + $interval - time;
+                sleep $due if $due > 0;
             }
         }->detach;
     }keys %$conf;
 
-    my ( $time, %data ) = time;
+    my %timeout  = map{ $_ => $conf->{$_}{timeout}  }keys %$conf;
+    my %interval = map{ $_ => $conf->{$_}{interval} }keys %$conf;
+    my ( $time, %data, %time ) = time;
 
     my $prev = 0;
     while( 1 )
@@ -150,8 +150,18 @@ sub run
             push my @code, [ qw( TASK usetime last err ) ];
             map
             {
-                push @code, [ $_, @{$data{'code'}{$_}}];
-            }sort keys %{$data{'code'}};
+                unless( $data{'code'}{$_} )
+                {
+                    push @code, [ $_, '','','no info'];
+                }
+                else
+                {
+                    my ( $usetime, $last, $err ) = @{$data{'code'}{$_}};
+                    $err = "run timeout" if ! $err && $usetime > $interval{$_};
+                    $err = "timeout" if ! $err && $last + $usetime + $timeout{$_} < time;
+                    push @code, [ $_, $usetime, $last, $err ];
+                }
+            }sort keys %timeout;
 
             push @collector, \@coll, \@code;
             $data{data}{collector} = \@collector;

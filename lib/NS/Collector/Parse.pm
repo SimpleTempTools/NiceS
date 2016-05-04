@@ -4,26 +4,32 @@ use NS::Util::Logger qw(debug verbose info warning error);
 use POSIX;
 use YAML::XS;
 use Data::Dumper;
+use List::MoreUtils qw(pairwise);
 
-our %MAP = 
+our %MAP =
 (
-    TEST => '_parse_test',
-    LOAD => '_parse_pair',
-    UPTIME => '_parse_uptime',
-    IO => '_parse_pair',
-    MEM => '_parse_pair',
-    VERSION => '_parse_pair',
-    FILE => '_parse_pair',
-    CPU => '_parse_pair',       #only get 'all'
+    TEST            => '_parse_test',
+    LOAD            => '_parse_pair',
+    UPTIME          => '_parse_uptime',
+    IO              => '_parse_pair',
+    MEM             => '_parse_pair',
+    VERSION         => '_parse_pair',
+    FILE            => '_parse_pair',
+    CPU             => '_parse_pair',       #only get 'all'
+    OTHER           => '_parse_pair',       #try parse pair
+    IFACE           => '_parse_flatten',
+    DF              => '_parse_flatten',
+    INDEXINCSTATS   => '_parse_pair',
+    PING            => '_parse_pair',
+    NGINXSTATUS     => '_parse_pair',
 );
 
 sub new
 {
     my ($class, $raw, %hash) = splice @_, 0, 2;
 
-    my $msg; eval{$msg = YAML::XS::Load $raw};
+    my $msg = ref $raw ? $raw : eval{ YAML::XS::Load $raw};
     $msg = [] unless $msg && ref $msg eq 'ARRAY';
-
     for(@$msg)
     {
         exists $_->[0] && exists $_->[0]->[0] or next;
@@ -32,14 +38,24 @@ sub new
     bless \%hash, $class;
 }
 
+sub _debug { my($this, $key) = @_; $this->{$key} }
 sub parse
 {
     my($this, $key) = @_;
-    $MAP{$key}->( $this->{$key} );
+
+    if($MAP{$key})
+    {
+        $MAP{$key}->( $this->{$key} );
+
+    }else{
+
+        warn "parse $key not support, try parse pair";
+        $MAP{OTHER}->( $this->{$key} );
+    }
 }
 
 
-my %TEST_KEY = 
+my %TEST_KEY =
 (
    'cond'    =>  0 ,
    'stat'    =>  10,
@@ -75,6 +91,23 @@ sub _parse_uptime
     delete $time{UPTIME};
     $time{human} = POSIX::strftime( "%Y-%m-%d %H:%M", localtime( $time{'time'} || time ) );
     wantarray ? %time : \%time;
+}
+
+sub _parse_flatten
+{
+    my ($msg, %ret) = shift;
+    for(@$msg)
+    {
+        my(@colum, @head) = @$_;
+        @head = @{ shift @colum }; shift @head;
+        for(@colum)
+        {
+            my($face, @value) = @$_;
+            pairwise{ $ret{$face}->{ $a } = $b }@head, @value;
+        }
+    }
+
+    wantarray ? %ret : \%ret;
 }
 sub _parse_pair
 {

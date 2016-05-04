@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Carp;
 use POSIX;
+use Module::Runtime qw(use_module);
 
 use NS::nices;
 use NS::Collector;
@@ -25,7 +26,6 @@ use NS::Collector::Stat::Backup;
 use NS::Collector::Stat::Coredump;
 use NS::Collector::Stat::Output;
 use NS::Collector::Stat::Ping;
-use NS::Collector::Stat::Cache;
 use NS::Hermes;
 
 use Data::Dumper;
@@ -111,7 +111,9 @@ sub new
     push @data, NS::Collector::Stat::Backup->co( @{$test{BACKUP}} ) if $base || @{$test{BACKUP}};
     push @data, NS::Collector::Stat::Output->co( @{$test{OUTPUT}} ) if $base || @{$test{OUTPUT}};
     push @data, NS::Collector::Stat::Ping->co( @{$test{PING}} ) if $base || @{$test{PING}};
-    push @data, NS::Collector::Stat::Cache->co( @{$test{CACHE}} ) if $base || @{$test{CACHE}};
+
+    push @data, NS::Collector::Stat::Cache->co( @{$test{CACHE}} ) if  @{$test{CACHE}} && eval{use_module('NS::Collector::Stat::Cache')};
+    warn $@ if $@;
 
     for ( 0 .. $#data )
     {

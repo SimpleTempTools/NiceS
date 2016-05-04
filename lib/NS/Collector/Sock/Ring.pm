@@ -44,7 +44,7 @@ sub _server
     my ( $this, $socket ) = @_;
     $MUTEX->down();
     my $count = $DATA->pending;
-    my @data = $count ? $DATA->dequeue($count) : ();
+    my @data = grep{ref $_} map{eval{ YAML::XS::Load $_}} $count ? $DATA->dequeue($count) : ();
     $MUTEX->up();
     NS::Util::Sysrw->write( $socket, YAML::XS::Dump \@data );
 }

@@ -94,13 +94,12 @@ sub curr
     }
     else
     {
-        for ( @$data )
+        for my $s ( @$data )
         {
-            my $s = YAML::XS::Load $_;
             next unless ref $s eq 'ARRAY';
             my ( $d, $t ) = @$s;
             next unless ref $d eq 'ARRAY';
-            map{print "$t\t"; map{ print $_||'',"\t" }@$_; print "\n";}@$d;
+            map{map{ print "$t\t";map{  print $_||'',"\t"}@$_; print "\n";}@$_}@$d;
         }
     }
     return $this;

@@ -16,26 +16,26 @@ use Thread::Semaphore;
 use threads::shared;
 
 our ( $DATA, $MUTEX, $RING ) 
-    = ( Thread::Queue->new, Thread::Semaphore->new(), 300 );
+    = ( Thread::Queue->new, Thread::Semaphore->new(), 128 );
 use base 'NS::Collector::Sock';
 
 our %EXC = ( TEST => 1, PS => 1 );
 sub push
 {
-    my @data = @_;
+    my $data = shift;
     my $time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime );
-    @data = splice @data, 0, $RING if @data > $RING;
+    $data = [ splice @$data, 0, $RING ] if @$data > $RING;
 
     $MUTEX->down();
-    my $del = $DATA->pending + @data - $RING;
+    my $del = $DATA->pending + @$data - $RING;
     if( $del > 0 )
     {
         warn "sock ring delete: $del\n";
         $DATA->dequeue( $del );
     }
 
-    @data = map{ YAML::XS::Dump [$_,$time] } grep{ ! $EXC{$_->[0][0]} }@data;
-    $DATA->enqueue( @data ) if @data;
+    $data = YAML::XS::Dump [ [ grep{ ! $EXC{$_->[0][0]} }@$data ],$time];
+    $DATA->enqueue( $data );
     $MUTEX->up();
 }
 
@@ -45,6 +45,7 @@ sub _server
     $MUTEX->down();
     my $count = $DATA->pending;
     my @data = grep{ref $_} map{eval{ YAML::XS::Load $_}} $count ? $DATA->dequeue($count) : ();
+     
     $MUTEX->up();
     NS::Util::Sysrw->write( $socket, YAML::XS::Dump \@data );
 }

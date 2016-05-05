@@ -134,7 +134,7 @@ sub run
         {
             my ( $type, $name, $data ) = $queue->dequeue( 3 );
             $data{$type}{$name} = YAML::XS::Load $data;
-            NS::Collector::Sock::Ring::push( @{$data{$type}{$name}} ) if $type eq 'data';
+            NS::Collector::Sock::Ring::push( $data{$type}{$name} ) if $type eq 'data';
         }
 
         my $uptime = $data{'collector'}{uptime} = time - $time;

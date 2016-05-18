@@ -40,10 +40,16 @@ sub co
 
         if( 'IFACE' eq $title->[0] )
         {
+            my @all = ( 'ALL' );
+            for my $index ( 1 .. @$title -1 )
+            {
+                map{ $all[$index] += $stat->[$_][$index] }1 .. @$stat -1;
+            }
+            push @$stat, \@all;
             for my $index ( 1 .. @$title -1 )
             {
                 next unless $title->[$index] eq 'rxkB/s' || $title->[$index] eq 'txkB/s';
-                map { $stat->[$_][$index] *= 1024; }1 .. @$stat -1
+                map { $stat->[$_][$index] *= 1024; }1 .. @$stat -1;
             }
         }
 

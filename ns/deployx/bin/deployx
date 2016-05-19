@@ -15,16 +15,20 @@ $| ++;
 $NS::Util::OptConf::THIS = 'deployx';
 
 my @argv = @ARGV;
-my %o = NS::Util::OptConf->load()->get( qw( check unlog ) )->dump();
+my %o = NS::Util::OptConf->load()->get( qw( check unlog task=s ) )->dump();
 
 exit 0 unless my $name = shift;
 
 if( $o{unlog} || $o{check} )
 {
+
+    my %macro;
+    map{  $macro{$1} = $2 if $_ =~ /^([^=]+)=(.*)/ }@ARGV;
+
     my $deploy = NS::DeployX->new( 
         name => $name,
-        code => $o{code},
-        conn => NS::Util::DBConn->new( $o{conn} ),
+        macro => \%macro,
+        map{ $_ => $o{$_} }qw( code task ),
     );
 
     exit 0 if $o{check};
@@ -37,5 +41,5 @@ else
     my $path = File::Spec->join( $o{logs}, $name );
 
     system sprintf "ln -fsn '%s' '%s'" , $log, $path;
-    exec sprintf "$0 --unlog '%s' %s %s", join( "' '", @argv ), $ENV{TERM} ? '|tee' : '>', $path;
+    exec sprintf "$0 --unlog '%s' %s %s", join( "' '", @argv ), ( $ENV{ATID} || $ENV{TERM} )? '|tee' : '>', $path;
 }

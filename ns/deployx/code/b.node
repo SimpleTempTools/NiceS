@@ -29,7 +29,7 @@ return sub
 
         if( my $each = $param{each} )
         {
-            $each = '\.(\w+?)\d?\.qihoo\.net$' if $each eq 'idc';
+            $each = '\.(\w+?)\d?\.qqqq\.net$' if $each eq 'idc';
 
             my ( %type, %count );
             map{ $_ =~ /$each/; push @{$type{$1||'null'}}, $_; }@node;

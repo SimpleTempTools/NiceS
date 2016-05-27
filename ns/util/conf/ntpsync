@@ -1,7 +1,7 @@
 ---
-'qihoo.net':
-  - ntp1.qihoo.net
-  - ntp2.qihoo.net
+'qqqq.net':
+  - ntp1.qqqq.net
+  - ntp2.qqqq.net
 
 '.*':
   - pool.ntp.org

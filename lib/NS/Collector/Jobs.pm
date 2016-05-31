@@ -164,7 +164,7 @@ sub run
             }sort keys %timeout;
 
             push @collector, \@coll, \@code;
-            $data{data}{collector} = \@collector;
+	    NS::Collector::Sock::Ring::push( $data{data}{collector} = \@collector );
             eval{ 
                 YAML::XS::DumpFile "$this->{data}/.output", $data{data};
                 $push->push( $data{data} ) if $push;

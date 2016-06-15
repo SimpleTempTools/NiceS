@@ -8,20 +8,28 @@ use List::MoreUtils qw(pairwise);
 
 our %MAP =
 (
-    TEST            => '_parse_test',
-    LOAD            => '_parse_pair',
-    UPTIME          => '_parse_uptime',
-    IO              => '_parse_pair',
-    MEM             => '_parse_pair',
-    VERSION         => '_parse_pair',
-    FILE            => '_parse_pair',
-    CPU             => '_parse_pair',       #only get 'all'
-    OTHER           => '_parse_pair',       #try parse pair
-    IFACE           => '_parse_flatten',
-    DF              => '_parse_flatten',
-    INDEXINCSTATS   => '_parse_pair',
-    PING            => '_parse_pair',
-    NGINXSTATUS     => '_parse_pair',
+    err           => '_parse_test_err',
+    warn          => '_parse_test_warn',
+    TEST          => '_parse_test',
+    LOAD          => '_parse_pair',
+    UPTIME        => '_parse_uptime',
+    IO            => '_parse_pair',
+    MEM           => '_parse_pair',
+    FILE          => '_parse_pair',
+    PAGE          => '_parse_pair',
+    SWAP          => '_parse_pair',
+    SOCK          => '_parse_pair',
+    VERSION       => '_parse_pair',
+    FILE          => '_parse_pair',
+    CPU           => '_parse_pair',       #only get 'all'
+    OTHER         => '_parse_pair',       #try parse pair
+    IFACE         => '_parse_flatten',
+    DF            => '_parse_flatten',
+    PROC          => '_parse_flatten',
+    BACKUP        => '_parse_flatten',
+    INDEXINCSTATS => '_parse_pair',
+    PING          => '_parse_pair',
+    NGINXSTATUS   => '_parse_pair',
 );
 
 sub new
@@ -38,19 +46,35 @@ sub new
     bless \%hash, $class;
 }
 
+sub parse_all
+{
+    my($this, %ret) = shift;
+    for(keys %$this)
+    {
+        my $v = $this->parse($_, @_);
+        $ret{$_} = $v if $v;
+    }
+    %ret;
+}
+
 sub _debug { my($this, $key) = @_; $this->{$key} }
 sub parse
 {
-    my($this, $key) = @_;
+    my($this, $key, %opt) = @_;
 
     if($MAP{$key})
     {
-        $MAP{$key}->( $this->{$key} );
+        $MAP{$key}->( $key eq 'err' || $key eq 'warn' ? $this->{TEST} : $this->{$key} );
 
     }else{
 
-        warn "parse $key not support, try parse pair";
-        $MAP{OTHER}->( $this->{$key} );
+        warn "parse $key not support";
+        print Dumper $this->{$key} if $opt{debug};
+        if($opt{force})
+        {
+            warn "try parse pair";
+            $MAP{OTHER}->( $this->{$key} );
+        };
     }
 }
 
@@ -65,15 +89,32 @@ my %TEST_KEY =
 );
 sub _parse_test
 {
-    my ($msg, %err) = shift;
+    my ($msg, %all) = shift;
 
     map
     {
         my $msg = $_;
-        my ($cond, $group, $info) = map{ $msg->[ $TEST_KEY{$_} ] }qw( cond group info );
-        push @{ $err{$group} }, sprintf "%s (%s)", $cond, $info;
+        my %hash = map{ $_ => $msg->[ $TEST_KEY{$_} ] }keys %TEST_KEY;
+        my ($cond, $stat, $group, $info) = map{ $msg->[ $TEST_KEY{$_} ] }qw(cond stat group info);
+        push @{ $all{ $group }->{ $stat } }, $stat eq 'err' ? sprintf("%s (%s)", $cond, $info) : $cond;
     }
-    grep{$_->[ $TEST_KEY{'stat'} ] eq 'err'}
+    grep{$_ && $_->[0] ne 'TEST'}map{@$_}@$msg;
+    wantarray ? %all : \%all;
+}
+
+sub _parse_test_err{  _parse_test_stat(shift, 'err')  }
+sub _parse_test_warn{ _parse_test_stat(shift, 'warn') }
+sub _parse_test_stat
+{
+    my ($msg, $stat, %err) = splice @_, 0, 2;
+
+    map
+    {
+        my $msg = $_;
+        my ($cond, $group, $info, $warning) = map{ $msg->[ $TEST_KEY{$_} ] }qw(cond group info warning);
+        push @{ $err{$group} }, sprintf "%s (%s)", $cond, $stat eq 'err' ? $info : $warning;
+    }
+    grep{$_->[ $TEST_KEY{'stat'} ] eq $stat}
     grep{$_ && $_->[0] ne 'TEST'}map{@$_}@$msg;
 
     wantarray ? %err : \%err;
@@ -95,7 +136,7 @@ sub _parse_uptime
 
 sub _parse_flatten
 {
-    my ($msg, %ret) = shift;
+    my ($msg, %ret, @ret) = shift;
     for(@$msg)
     {
         my(@colum, @head) = @$_;
@@ -106,8 +147,8 @@ sub _parse_flatten
             pairwise{ $ret{$face}->{ $a } = $b }@head, @value;
         }
     }
-
-    wantarray ? %ret : \%ret;
+    $ret{$_}->{class} = $_ for keys %ret;
+    wantarray ? values %ret : [values %ret];
 }
 sub _parse_pair
 {

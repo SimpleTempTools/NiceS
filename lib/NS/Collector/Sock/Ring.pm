@@ -23,7 +23,8 @@ our %EXC = ( TEST => 1, PS => 1 );
 sub push
 {
     my $data = shift;
-    my $time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime );
+    my $time = time;
+    #my $time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime );
     $data = [ splice @$data, 0, $RING ] if @$data > $RING;
 
     $MUTEX->down();

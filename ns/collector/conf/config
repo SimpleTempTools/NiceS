@@ -64,10 +64,8 @@ conf:
     timeout: 30
 target: i1.se.bjdt.nices.net
 push:
-  post: 'http://i100.se.bjdt.nices.net:8762/ns/collect/in'
-  from:
+  addr: 'http://i100.se.bjdt.nices.net:8762/ns/collect/in'
+  form:
     node: '$node'
-    data: '$adta'
-  proxy: 'localhost:9089'
-
-
+    data: '$data'
+  proxy: [ [ http, https], 'socks://localhost:9999' ]

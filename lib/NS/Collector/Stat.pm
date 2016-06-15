@@ -161,6 +161,18 @@ sub stat
     return [ @$data, \@stat ];
 }
 
+sub code
+{
+    my ( $self, %code ) = shift;
+    for( @{$self->stat} )
+    {
+        next unless $_->[0][0] eq 'TEST';
+        map{ $code{$_->[10]} ++; }@$_;
+    }
+
+    return ( $code{ok} && ! $code{err} ) ? 'ok' : 'err';
+}
+
 sub info
 {
     my ( $self, @type ) = @_;

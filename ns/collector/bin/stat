@@ -5,8 +5,8 @@ use warnings;
 use NS::Util::OptConf;
 use NS::Collector::Stat;
 
-use Data::Dumper;
 use FindBin qw( $RealBin );
+
 my %o = NS::Util::OptConf->load()->get( qw( interval=i simple ) )->dump();
 
 my ( @eval, @info, @include, @exclude );
@@ -56,7 +56,7 @@ $o{interval} = 3 if $tc > 1 && ! $o{interval} && ( @include || @exclude );
 my $info;
 for( 1 .. 100 )
 {
-    $info = NS::Collector::Stat->new( test => \%cc )->eval;
+    $info = NS::Collector::Stat->new( test => %cc ? \%cc : undef )->eval;
 
     if( @include || @exclude || $o{simple} )
     {

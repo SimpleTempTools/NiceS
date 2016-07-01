@@ -6,6 +6,8 @@ use Carp;
 use JSON;
 use LWP::UserAgent;
 use NS::Util::OptConf;
+use URI::Escape;
+use NS::OpenAPI::Logs;
 
 my $addr; BEGIN{ $addr = NS::Util::OptConf->load()->dump('openapi')->{addr}; };
 
@@ -28,7 +30,11 @@ sub _get
 {
     my ( $self, $uri ) = @_;
 
+#    $uri = URI::Escape::uri_escape( $uri );
+
+    $uri =~ s/ /%20/g;
     my $res = $self->{ua}->get( "$self->{addr}$uri" );
+    print "get $self->{addr}$uri\n" if $ENV{NS_DEBUG};
     my $cont = $res->content;
     return +{ stat => JSON::false, info => $res->content } unless $res->is_success;
 
@@ -39,14 +45,34 @@ sub _get
 sub get
 {
     my $self = shift;
-    my $res = $self->_get( @_ );
-    $res->{stat} ? $res->{data} : die "openapi $res->{info}";
+
+    my ( $uri ) = @_;
+    if( $ENV{NS_OpenAPI_Retry} )
+    {
+        my $logs = NS::OpenAPI::Logs->new();
+        while( 1 )
+        {
+            my $res = $self->_get( @_ );
+            return $res->{data} if $res->{stat};
+            my $error = "openapi $uri err: $res->{info}";
+            warn "$error\n";
+            $logs->put( type=> 'ERROR', info => $error );
+            sleep 3;
+        }
+    }
+    else
+    {
+        my $res = $self->_get( @_ );
+        $res->{stat} ? $res->{data} : die "openapi $uri err: $res->{info}\n";
+    }
 }
 
 sub _post
 {
     my ( $self, $uri, %form ) = @_;
 
+    $uri =~ s/ /%20/g;
+    print "post $self->{addr}$uri\n" if $ENV{NS_DEBUG};
     my $res = $self->{ua}->post( "$self->{addr}$uri", 
           Content => JSON::to_json(\%form), 'Content-Type' => 'application/json' );
     my $cont = $res->content;
@@ -60,8 +86,27 @@ sub _post
 sub post
 {
     my $self = shift;
-    my $res = $self->_post( @_ );
-    $res->{stat} ? $res->{data} : die "openapi $res->{info}";
+
+    my ( $uri ) = @_;
+    if( $ENV{NS_OpenAPI_Retry} )
+    {
+        my $logs = NS::OpenAPI::Logs->new();
+        while( 1 )
+        {
+            my $res = $self->_post( @_ );
+            return $res->{data} if $res->{stat};
+            my $error = "openapi $uri err: $res->{info}";
+            warn "$error\n";
+            $logs->put( type=> 'ERROR', info => $error );
+            sleep 3;
+        }
+    }
+    else
+    {
+        my $res = $self->_post( @_ );
+        $res->{stat} ? $res->{data} : die "openapi $uri err $res->{info}\n";
+    }
+
 }
 
 1;

@@ -13,7 +13,7 @@ our $URI = '/openapi/lock';
 sub dump
 {
     my $self = shift;
-    $self->get( "$URI/dump" );
+    $self->get( sprintf "$URI/dump%s", $self->{name} ? "?name=$self->{name}" : '' );
 }
 
 #sub check

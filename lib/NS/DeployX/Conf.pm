@@ -41,12 +41,12 @@ Each set defines the following parameters:
 #
 sub new
 {
-    my ( $class, $name, $task ) = splice @_;
+    my ( $class, $name, $m, $c ) = splice @_;
    
     my $openapi = NS::OpenAPI::Deploy->new( name => $name );
 
-    my $main = $openapi->main();
-    my $conf = $openapi->conf($task);
+    my $main = $openapi->main($m);
+    my $conf = $openapi->conf($c);
 
     return bless +{ main => $main, conf => $conf }, ref $class || $class;
 }
@@ -69,9 +69,18 @@ sub dump
     map { $title{ $conf->[ $_-1]->{title}||="job.$_"} ++; }1 .. @$conf;
     
     my @redef = grep{ $title{$_} > 1 }keys %title;
-    confess sprintf( "title redef: %s\n", join ',', @redef ) if @redef;
-    
+    if( @redef )
+    {
+        printf "title redef: %s\n", join ',', @redef;
+        exit 113;
+    }
     return $main, $conf;
 }
 
+sub old
+{
+    my ( $class, $name, $mark ) = splice @_;
+    my $openapi = NS::OpenAPI::Deploy->new( name => $name );
+    return map{ $openapi->cache($mark, $_) }qw( main conf );
+}
 1;

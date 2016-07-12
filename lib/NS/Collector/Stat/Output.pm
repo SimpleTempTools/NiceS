@@ -7,6 +7,7 @@ use POSIX;
 use File::Spec;
 use FindBin qw( $RealBin );
 use Digest::MD5;
+use NS::Collector::Util;
 
 our $path = "$RealBin/../exec";
 
@@ -36,7 +37,7 @@ sub co
             unless ( $cmd ){ warn"[WARN]no command defined on $output.\n"; next; }
             unless ( -x $cmd ){ warn"[WARN]$cmd is not an executable file.\n"; next; }
 
-            my $filemd5 = `md5sum '$cmd'`;
+            my $filemd5 = NS::Collector::Util::qx( "md5sum '$cmd'" );
             unless( $filemd5 =~ /^(\w{32})\s+$cmd$/ )
             {
                 warn"[WARN]get $cmd md5 fail.\n";next;
@@ -51,7 +52,7 @@ sub co
             $todo = $sudo ? "sudo -u $sudo $cmd" : $cmd;
         }
 
-        my $stdout = `$todo 2>&1`;
+        my $stdout = NS::Collector::Util::qx( "$todo 2>&1" );
         my $exit = $? == -1 ? -1 : $? >> 8;
 	my $md5sum = Digest::MD5->new()->add( $stdout ||'' )->hexdigest();
         push @stat, [ $output, $stdout, $md5sum, $exit ];

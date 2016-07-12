@@ -6,13 +6,15 @@ use Carp;
 use POSIX;
 use File::Basename;
 
+use NS::Collector::Util;
+
 sub co
 {
     my ( $this, @stat ) = shift;
 
     push @stat, [ 'COREDUMP', '1m', '5m', '15m', 'all' ];
 
-    return \@stat unless my $path = `sysctl -n kernel.core_pattern`;
+    return \@stat unless my $path = NS::Collector::Util::qx ( 'sysctl -n kernel.core_pattern' );
     
     chomp $path;
     my $dir = File::Basename::dirname( $path );

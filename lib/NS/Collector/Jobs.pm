@@ -15,7 +15,9 @@ use NS::Collector::Push;
 use NS::Collector::Sock::Data;
 use NS::Collector::Sock::Ring;
 use NS::Collector::Stat::Backup;
+use NS::Collector::Util;
 
+use POSIX qw( :sys_wait_h );
 #use Time::HiRes qw( time sleep alarm stat );
 
 use Data::Dumper;
@@ -49,7 +51,7 @@ sub run
     my ( $this, $index ) = shift;
 
     my $queue = Thread::Queue->new;
-    $SIG{ALRM} = sub{ die "code timeout."; };
+#    $SIG{ALRM} = sub{ die "code timeout."; };
 
     my $config = $this->{config};
     my $conf   = $config->{conf};
@@ -70,59 +72,74 @@ sub run
 
     threads::async
     { 
-        my $index = `ls -tr $this->{logs}/output.* |tail -n 1` =~ /\/output\.(\d+)\n$/ 
-                    ? $1 : 0;
+        my $index = NS::Collector::Util::qx( "ls -tr $this->{logs}/output.* |tail -n 1" ) 
+                        =~ /\/output\.(\d+)\n$/ ? $1 : 0;
 
         while( 1 )
         {
             if (( stat "$this->{data}/output" )[9] > time - 90 )
             {
                 $index = 1 if ++$index > 1024;
-                system "cp '$this->{data}/output' '$this->{logs}/output.$index'";
+                NS::Collector::Util::system "cp '$this->{data}/output' '$this->{logs}/output.$index'";
                 sleep 600;
             }
             else { sleep 30; }
         }
     }->detach;
 
-    map{
-        threads::async
+
+    sub task
         {
-            print "init $_\n";
-            my $conf = $conf->{$_};
+            my ( $t, $conf, $this, $config, $queue ) = @_;
+            $SIG{'KILL'} = sub { print "$t exit\n";threads->exit(); };
+            $SIG{'CHLD'} = sub {                   
+                my $kid;
+                do {
+                    $kid = waitpid(-1, WNOHANG);
+                } while $kid > 0;
+            };
+            print "init $t\n";
+            #my $conf = $conf->{$t};
             my ( $interval, $timeout, $code, $param, $i ) 
                 = @$conf{qw( interval timeout code param )};
 
             $interval ||= 60; $timeout ||= $interval;
 
-            $code = do "$this->{code}/$config->{conf}{$_}{code}";
+            $code = do "$this->{code}/$config->{conf}{$t}{code}";
             unless( $code && ref $code eq 'CODE' )
             {
-                warn "load code fail: $_\n";
+                warn "load code fail: $t\n";
                 exit 1;
             }
 
             while(1)
             {
-                printf "do $_ (%d)...\n", ++ $i;
+                printf "do $t (%d)...\n", ++ $i;
                 my $time = time;
                 eval
                 {
                     my $data = &$code( %$param );
-                    $queue->enqueue( 'data', $_, YAML::XS::Dump $data );
+                    $queue->enqueue( 'data', $t, YAML::XS::Dump $data );
                 };
-                $queue->enqueue( 'code', $_, 
+                $queue->enqueue( 'code', $t, 
                     YAML::XS::Dump [ time - $time, $time, $@ ||'' ] 
                 );
 
                 my $due = $time + $interval - time;
                 sleep $due if $due > 0;
-            }
-        }->detach;
+        }
+    };
+
+    my ( %thr, %tid );
+    map{ 
+        $thr{$_} = threads->create( 'task', ( $_, $conf->{$_}, $this, $config, $queue ) );
+        $tid{$thr{$_}->tid()} = $_;
     }keys %$conf;
 
-    my %timeout  = map{ $_ => $conf->{$_}{timeout}  }keys %$conf;
-    my %interval = map{ $_ => $conf->{$_}{interval} }keys %$conf;
+print Dumper \%thr, \%tid;
+
+    my %timeout  = map{ $_ => $conf->{$_}{timeout} || 60 }keys %$conf;
+    my %interval = map{ $_ => $conf->{$_}{interval} || 60}keys %$conf;
     my ( $time, %data, %time ) = time;
 
     my $prev = 0;
@@ -163,6 +180,28 @@ sub run
                 }
             }sort keys %timeout;
 
+            for( 1 .. @code -1 )
+            {
+                my ( $name, $error ) = ( $code[$_][0], $code[$_][3] );
+                next unless $error;
+                print "code timeout $name\n";
+                eval{ $thr{$name}->kill('KILL'); } ;##if $curr % 2;
+                print "kill thread err:$@\n" if $@;
+            }
+
+            for my $t ( threads->list( threads::joinable ) )
+            {
+
+                my $tid = $t->tid();
+                next unless my $name = delete $tid{$tid};
+                $t->join();
+                $thr{$name} = threads->create(
+                    'task', ( $name, $conf->{$name}, $this, $config, $queue )
+                );
+
+                $tid{$thr{$name}->tid()} = $name;
+            }
+
             push @collector, \@coll, \@code;
             NS::Collector::Sock::Ring::push( $data{data}{collector} = \@collector );
             eval{ 
@@ -171,7 +210,7 @@ sub run
                 $NS::Collector::Sock::Data::DATA = YAML::XS::Dump $data{data};
             };
             
-            system "mv '$this->{data}/.output' '$this->{data}/output'";
+            NS::Collector::Util::system "mv '$this->{data}/.output' '$this->{data}/output'";
         }
         sleep 3;
     }

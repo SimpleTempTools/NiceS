@@ -5,6 +5,8 @@ use warnings;
 use Carp;
 use POSIX;
 
+use NS::Collector::Util;
+
 sub co
 {
     my ( $this, @watch, @stat, %watch ) = @_;
@@ -23,7 +25,7 @@ sub co
         }
         elsif( -f $watch )
         {
-            my $cont = `cat '$watch'`; chomp $cont;
+            my $cont = NS::Collector::Util::qx( "cat '$watch'" ); chomp $cont;
             push @data, $cont, 'cont';
         }
         else

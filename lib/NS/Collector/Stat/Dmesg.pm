@@ -6,6 +6,7 @@ use Carp;
 use POSIX;
 
 use Data::Dumper;
+use NS::Collector::Util;
 
 my %REGEX = 
 (
@@ -28,7 +29,7 @@ sub co
 
     my $grep = join '|', keys %REGEX;
 
-    my @data = `dmesg |grep -iE -m 10 "$grep"`;
+    my @data = NS::Collector::Util::qx ( "dmesg |grep -iE -m 10 \"$grep\"" );
 
     my %data = map{ $_ => 0 }values %REGEX;
     push @stat, [ 'DMESG', 'all', sort keys %data ];

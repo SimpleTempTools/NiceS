@@ -10,6 +10,7 @@ use IO::Socket::INET;
 
 #use Net::SSL;
 use Data::Dumper;
+use NS::Collector::Util;
 
 #retry:3:time:3:input:hello:tcp:22
 
@@ -21,7 +22,7 @@ BEGIN{
         $tmp = $1 if $_ =~ /^(\S+)/;
         $iface{$tmp} = $1 if $tmp && $_ =~ /\baddr:(\d+\.\d+\.\d+\.\d+)\b/;
 
-    }`ifconfig`;
+    }NS::Collector::Util::qx( 'ifconfig' );
 };
 
 sub co
@@ -45,7 +46,7 @@ sub co
             else
             {
                 $output = '';
-                $status = system( "nc -u -z -w $opt{time} $opt{host} $opt{udp} 1>/dev/null 2>&1" )
+                $status = NS::Collector::Util::system( "nc -u -z -w $opt{time} $opt{host} $opt{udp} 1>/dev/null 2>&1" )
                     ? 'down' : 'alive';
             }
 

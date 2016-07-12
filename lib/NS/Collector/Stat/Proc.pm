@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Carp;
 use POSIX;
+use NS::Collector::Util;
 
 my %eo = ( 
     'pcpu' => 1, 'pmem' => 1, 'sz'   => 1, 'rsz'  => 1,
@@ -19,7 +20,7 @@ sub co
     my ( $this, @jobs, @stat, @proc, %proc ) = @_;
 
     my $eo = join ',', @eo;
-    my @ps = `ps -eo pid,$eo`;
+    my @ps = NS::Collector::Util::qx( "ps -eo pid,$eo" );
 
     my %index;
     my $i = 0;
@@ -58,7 +59,7 @@ sub co
         }
         else
         {
-            my @pids = `$jobs`;
+            my @pids = NS::Collector::Util::qx( $jobs );
             my $pids = join ',',@pids;
 
             map{ $pids{$_} = 1 }$pids =~ /(\d+)/g;

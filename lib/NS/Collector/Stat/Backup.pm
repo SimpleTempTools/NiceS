@@ -5,6 +5,8 @@ use warnings;
 use Carp;
 use POSIX;
 
+use NS::Collector::Util;
+
 our $path;
 my ( $max, $xxx ) = ( 32, sprintf '0' x 32 );
 
@@ -29,7 +31,7 @@ sub co
         {
             last if $i++ > $max;
 
-            my $md5 = `md5sum '$file'`;
+            my $md5 = NS::Collector::Util::qx( "md5sum '$file'" );
             next unless $md5 =~ /^(\w{32})\s+$file$/;
             $md5 = $1;
             
@@ -42,16 +44,16 @@ sub co
             }
 
 
-            if( system "cp '$file' '$path/$dst=$xxx'" )
+            if( NS::Collector::Util::system "cp '$file' '$path/$dst=$xxx'" )
             {
                 warn "backup copy fail: $?\n";
                 next;
             }
 
-            my $d = `md5sum '$path/$dst=$xxx'`;
+            my $d = NS::Collector::Util::qx( "md5sum '$path/$dst=$xxx'" );
             next unless $d =~ /^(\w{32})\s+$path\/$dst=$xxx$/;
             $d = $1;
-            if( system "mv '$path/$dst=$xxx' '$path/$dst=$d'" )
+            if( NS::Collector::Util::system "mv '$path/$dst=$xxx' '$path/$dst=$d'" )
             {
                 warn "backup mv fail: $?\n";
                 next;

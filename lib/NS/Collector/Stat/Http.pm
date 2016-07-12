@@ -9,6 +9,7 @@ use LWP::UserAgent;
 use Encode;
 
 use Data::Dumper;
+use NS::Collector::Util;
 
 #retry:3:time:3:host:lvscheck.xitong.nices.net:proxy:http=127.0.0.1=9999:http://localhost:8080
 #http://iface:eth0:8080
@@ -19,7 +20,7 @@ BEGIN{
     map{
         $tmp = $1 if $_ =~ /^(\S+)/;
         $iface{$tmp} = $1 if $tmp && $_ =~ /\baddr:(\d+\.\d+\.\d+\.\d+)\b/;
-    }`ifconfig`;
+    }NS::Collector::Util::qx( 'ifconfig' );
 };
 
 my %option = ( 'time' => 5, retry => 1 );

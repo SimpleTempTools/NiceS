@@ -6,13 +6,14 @@ use Carp;
 use POSIX;
 
 use Data::Dumper;
+use NS::Collector::Util;
 
 sub co
 {
     my ( $this, @stat ) = shift;
 
 
-    my @data = `w|sed '1d'`;
+    my @data = NS::Collector::Util::qx( "w|sed '1d'" );
     return () if $? >> 8;
 
     for my $data ( @data )

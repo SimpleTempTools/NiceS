@@ -6,6 +6,7 @@ use Carp;
 use POSIX;
 use File::Spec;
 use FindBin qw( $RealBin );
+use NS::Collector::Util;
 
 our $path = "$RealBin/../exec";
 
@@ -35,7 +36,7 @@ sub co
             unless ( $cmd ){ warn"[WARN]no command defined on $exec.\n"; next; }
             unless ( -x $cmd ){ warn"[WARN]$cmd is not an executable file.\n"; next; }
            
-            my $filemd5 = `md5sum '$cmd'`;
+            my $filemd5 = NS::Collector::Util::qx( "md5sum '$cmd'" );
             unless( $filemd5 =~ /^(\w{32})\s+$cmd$/ )
             {
                 warn"[WARN]get $cmd md5 fail.\n";next;
@@ -50,9 +51,7 @@ sub co
             $todo = $sudo ? "sudo -u $sudo $cmd" : $cmd;
         }
 
-        my $stdout = `$todo`;
-        my $exit = $? == -1 ? -1 : $? >> 8;
-        push @stat, [ $exec, $exit, $stdout||'' ];
+        push @stat, [ $exec, NS::Collector::Util::system_qx( $todo ) ];
     }
 
     return \@stat;

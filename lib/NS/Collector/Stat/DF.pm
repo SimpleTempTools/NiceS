@@ -6,6 +6,7 @@ use Carp;
 use POSIX;
 
 use Data::Dumper;
+use NS::Collector::Util;
 
 sub co
 {
@@ -13,7 +14,8 @@ sub co
     eval{
         for ( '-l', '-i' )
         {
-            die "exec df $_ fail.\n" unless my @df = `df $_ 2>/dev/null`;
+            die "exec df $_ fail.\n" unless my @df 
+                = NS::Collector::Util::qx( "df $_ 2>/dev/null" );
             for my $df ( map { [ ( split /\s+/, $_, 7 )[ 5, 1..4 ] ] } @df )
             {
                 next unless my $t = shift @$df;

@@ -1,5 +1,6 @@
 package NS::Collector::Stat::Ping;
 use Data::Dumper;
+use NS::Collector::Util;
 
 our @HEAD = qw(PING min avg max mdev loss);
 our @NONE = qw(none none none none none none);
@@ -15,7 +16,7 @@ sub co
         push my @status, $host;
         eval
         {
-            my (@line, @s) = `ping -c 20 -f $host 2>/dev/null|tail -2`;
+            my (@line, @s) = NS::Collector::Util::qx( "ping -c 20 -f $host 2>/dev/null|tail -2" );
             @s = $line[1] =~ /(\d+\.\d+)\/(\d+\.\d+)\/(\d+\.\d+)\/(\d+\.\d+)/;
             push @s, $1 if $line[0] =~ /(\d+)\% packet loss/;
             push @status, @s ? @s : @NONE;

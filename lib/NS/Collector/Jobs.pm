@@ -183,7 +183,7 @@ sub run
             {
                 my ( $name, $error ) = ( $code[$_][0], $code[$_][3] );
                 next unless $error;
-                print "code timeout $name\n";
+                print "code stat error $name, restart!!!\n";
                 eval{ $thr{$name}->kill('KILL'); } ;##if $curr % 2;
                 print "kill thread err:$@\n" if $@;
             }

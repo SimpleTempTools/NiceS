@@ -88,7 +88,7 @@ sub curr
             {
                 warn "syntax err:$_\n";next;
             }
-            map{ map{ printf "$time\t%s\n", join "\t", map{$_||''}@$_ }@$_;print "\n"; }@$stat;
+            map{ map{ printf "$time\t%s\n", join "\t", map{defined $_ ? $_:''}@$_ }@$_;print "\n"; }@$stat;
             printf "\n%s\n\n", join ',', map{ $_->[0][0] }@$stat;
         }
     }
@@ -99,7 +99,7 @@ sub curr
             next unless ref $s eq 'ARRAY';
             my ( $d, $t ) = @$s;
             next unless ref $d eq 'ARRAY';
-            map{map{ print "$t\t";map{  print $_||'',"\t"}@$_; print "\n";}@$_}@$d;
+            map{map{ print "$t\t";map{  print defined $_ ? $_:'',"\t"}@$_; print "\n";}@$_}@$d;
         }
     }
     return $this;

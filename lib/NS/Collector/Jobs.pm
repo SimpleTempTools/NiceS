@@ -136,7 +136,6 @@ sub run
         $tid{$thr{$_}->tid()} = $_;
     }keys %$conf;
 
-print Dumper \%thr, \%tid;
 
     my %timeout  = map{ $_ => $conf->{$_}{timeout} || 60 }keys %$conf;
     my %interval = map{ $_ => $conf->{$_}{interval} || 60}keys %$conf;

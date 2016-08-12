@@ -3,6 +3,7 @@ use Dancer ':syntax';
 use Data::Dumper;
 use NS::Bone::Mysql;
 use JSON;
+use NS::OpenAPI::Deploy;
 
 our $VERSION = '0.1';
 
@@ -25,12 +26,17 @@ sub execute
 sub check
 {
     my %param = @_;
-    return grep{ $_ !~/^[\w _\.:-]*$/ }map{ ref $_ ? @$_: ( $_ ) }values %param;
+    return grep{ $_ !~/^[\*\/\w _\.:-]*$/ }map{ ref $_ ? @$_: ( $_ ) }values %param;
 }
 
 set serializer => 'JSON';
 
 any '/readme' => sub { template 'openapi_ctrl'; };
+
+any '/mon' => sub {
+     eval{ query( sprintf "select count(*) from ctrl" )};
+     return $@ ? "ERR:$@" : "ok";
+};
 
 any '/pause/:name' => sub {
     my $param = params();
@@ -45,23 +51,52 @@ any '/pause/:name' => sub {
 };
 
 
+any '/dump' => sub { stuck(); };
+
 any '/stuck/:name' => sub {
     my $param = params();
     die "format error\n" if check( %$param );
+    stuck(%$param);
+};
 
-    my @where = ( "ctrl!='exclude'", "name='$param->{name}'" );
-    map{ push @where, "$_='$param->{$_}'" if $param->{$_} }qw( step node );
+sub stuck
+{
+    my %param = @_;
+    my @where = ( "ctrl!='exclude'" );
+    push @where, "name='$param{name}'" if $param{name};
+    map{ push @where, "( $_='$param{$_}' or $_='any' )" if $param{$_} }qw( step node );
 
     my $r = eval{ query( 
                     sprintf "select * from ctrl where %s", join ' and ', @where 
                  )};
-    return $@ ? +{ stat => $JSON::false, info => $@ } : 
-                +{ stat => $JSON::true,  info => '', data => $r };
-};
+
+    return  +{ stat => $JSON::false, info => $@ } if $@ || ref $r ne 'ARRAY';
+
+    if( my @nouse = map{ $_->[0] }grep{ ! $_->[7] }@$r )
+    {
+        eval{ 
+            execute( 
+                sprintf "update ctrl set used='%s' where id in ( %s)",
+                    POSIX::strftime( "%Y-%m-%d %H:%M:%S", localtime ),
+                    join ',', @nouse
+            );
+        };
+        return  +{ stat => $JSON::false, info => $@ } if $@;
+    }
+    return +{ stat => $JSON::true,  info => '', data => $r };
+}
 
 any '/resume/:name' => sub {
     my $param = params();
     die "format error\n" if check( %$param );
+
+    if( my $user = $param->{user} )
+    {
+        my $oapi => NS::OpenAPI::Deploy->new( name => $param->{name} );
+        my $u = $oapi->mark()->{user};
+        return  +{ stat => $JSON::false, info => "user $param->{user} no auth to resume" } 
+            unless ( $u && $u eq $user );
+    }
 
     my @where = ( "ctrl!='exclude'", "name='$param->{name}'" );
     map{ push @where, "$_='$param->{$_}'" if $param->{$_} }qw( step node );

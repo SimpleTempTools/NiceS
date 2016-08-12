@@ -12,8 +12,8 @@ our $URI = "/openapi/deploy";
 
 sub list
 {
-    my $self = shift;
-    $self->get( "$URI/list" );
+    my ( $self, $user ) = @_;
+    $self->get( sprintf "$URI/list%s", $user ? "?user=$user" : '' );
 }
 
 sub create

@@ -8,8 +8,14 @@ use LWP::UserAgent;
 use NS::Util::OptConf;
 use URI::Escape;
 use NS::OpenAPI::Logs;
+use Sys::Hostname;
 
-my $addr; BEGIN{ $addr = NS::Util::OptConf->load()->dump('openapi')->{addr}; };
+my $addr; 
+BEGIN{ 
+    my $o = NS::Util::OptConf->load()->dump('openapi'); 
+    my $idc = ( split /\./, hostname )[2];
+    $addr = $idc && $o->{$idc} ? $o->{$idc} : $o->{default};
+};
 
 sub new 
 {

@@ -1,0 +1,56 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+use File::Spec;
+
+use NS::Util::OptConf;
+
+use YAML::XS;
+use NS::Util::AppsDeploy;
+use Sys::Hostname;
+
+
+$| ++;
+
+
+use NS::OpenAPI::AppsDeploy;
+
+=head1 SYNOPSIS
+
+ $0 --apps foo [stage|deploy|rollback|show]
+ $0 --apps foo stage:1000
+ $0 --apps foo deploy:5
+
+=cut
+
+my $option =  NS::Util::OptConf->load();
+my %o = $option->get( qw( apps=s print verbose ) )->dump();
+
+#$option->assert( 'apps' );
+
+my $openapi = NS::OpenAPI::AppsDeploy->new();
+
+unless( $o{apps} )
+{
+    my $data = $openapi->list( );
+    map{ print "$_\n"; }@$data;
+    exit;
+}
+
+my $data = $openapi->dump( $o{apps} );
+
+my $apps = NS::Util::AppsDeploy->new( data => $data, map{ $_ => $o{$_} }qw{ print verbose } );
+
+my ( @ctrl, %macro );
+map{ 
+    if( $_ =~ /^([^=]+)=(.*)/ )
+    {
+        $macro{$1} = $2;
+    }
+    else { push @ctrl, $_; }
+
+}@ARGV;
+    
+$apps->do( macro => \%macro, ctrl => \@ctrl );
+
+print "done.\n";

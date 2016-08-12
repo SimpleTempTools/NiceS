@@ -32,11 +32,13 @@ sub _mark
 sub mark { shift->{mark}; }
 sub rnew
 {
-    my ( $this, $main, $conf, $myid ) = @_;
+    my ( $this, $main, $conf, $myid, $user ) = @_;
     unless( $this->{mark} )
     {
         $this->_mark( 
-            +{ curr => $this->{mark} = 
+            +{ 
+                user => $user,
+                curr => $this->{mark} = 
                 ( $myid && $myid =~ /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/ )
                 ? $myid : POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime ) } 
         );

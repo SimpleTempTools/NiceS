@@ -53,17 +53,17 @@ sub new
 
 sub dump
 {
-    my ( $this, $macro, @macro ) = splice @_, 0,2;
+    my ( $this, $macro, %macro ) = splice @_, 0,2;
 
     my ( $main, $conf ) = map{
         my $s = YAML::XS::Dump $_;
         map { $s =~ s/\$macro{$_}/$macro->{$_}/g; } keys %$macro;
-        push @macro, $s =~ /(\$macro{[\w_]+})/g;
+        map{ $macro{$_} = 1 }$s =~ /(\$macro{[\w_]+})/g;
         my $n = YAML::XS::Load $s;
         $n;
     }@$this{qw( main conf )};
 
-    exit 0 if @macro && printf "macro no replace: %s\n", join ' ', @macro;
+    exit 0 if %macro && printf "macro no replace: %s\n", join ' ', keys %macro;
 
     my %title;
     map { $title{ $conf->[ $_-1]->{title}||="job.$_"} ++; }1 .. @$conf;

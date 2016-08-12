@@ -72,7 +72,7 @@ sub run
     };
 
     my $ctrl = NS::OpenAPI::Ctrl->new( name => $name ),
-    my $cachedb = $self->{cache}->rnew( $main, $conf, $run{myid} );
+    my $cachedb = $self->{cache}->rnew( $main, $conf, $run{myid}, $user );
     unless( $cachedb )
     {
         $lock->unlock();
@@ -108,6 +108,7 @@ sub run
     }
     $cachedb->cache( $cache );
 
+    my $blen = scalar @batch;
 
     $ctrl->pause( 'error', 'init', 'batch', 'node is null' ) unless @batch;
     
@@ -163,6 +164,7 @@ sub run
                  name => $name,
                  user => $user,
                  step => $step,
+                 blen => $blen,
                  conf => $conf->[$j],
                  myid => $run{myid},
                  ctrl => $ctrl,

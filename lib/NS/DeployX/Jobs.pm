@@ -34,16 +34,17 @@ sub run
     @node = map{ @$_ }@node if ref $node[0] eq 'ARRAY';
     my %node = map{ $_ => 1 }@node;
 
-    my ( $name, $step, $conf, $ctrl, $code, $cache, $cachedb, $myid, $user )
-        = @$this{qw( name step conf ctrl code cache cachedb myid user )};
+    my ( $name, $step, $conf, $ctrl, $code, $cache, $cachedb, $myid, $user, $blen )
+        = @$this{qw( name step conf ctrl code cache cachedb myid user blen )};
 
     map { $conf->{$_} = $CONF{$_} unless defined $conf->{$_} }keys %CONF;
-    my ( $redo, $retry, $title, $delay, $sleep, $repeat, $timeout, $grep, $fix, $goon, $max ) 
-        = @$conf{qw( redo retry title delay sleep repeat timeout grep fix goon max )};
+    my ( $redo, $retry, $title, $delay, $sleep, $repeat, $timeout, $grep, $fix, $goon, $max, $global, $quiet ) 
+        = @$conf{qw( redo retry title delay sleep repeat timeout grep fix goon max global quiet )};
 
     $goon = ( $goon * scalar @node ) / 100 if $goon =~ s/%$//;
 
-    print '#' x 28, POSIX::strftime( "%F_%T", localtime ), '#' x 28, "\n";
+    my $info = sprintf "batch: %s/$blen", $global ? 'global': $step;
+    print '#' x 28, POSIX::strftime( "%F_%T", localtime ), '#' x 10, $info, '#' x 10, "\n";
     printf "$title\n";
 
     my ( $range, %succ, %tryfix ) = NS::Hermes->new();
@@ -60,13 +61,13 @@ sub run
         $range->load( \@_ )->dump();
     };
 
-    for my $i ( 0 .. $redo )
+    for( my $i = 0; $i <= $redo; $i++ )
     {
         my $t = $tryfix{$i} ? 'tryfix' : $i ? "redo #$i" : 'do';
         printf "$t ...\n" unless $t eq 'do';
  
-        my ( $try, $error ) = ( $tryfix{$i} ? $tryfix{$i} -1 : $retry );
-        for my $j ( 0 .. $try )
+        my ( $try, $error ) = ( $tryfix{$i} ? $tryfix{$i} -1 : $retry, 'deployx jobs stuck' );
+        for( my $j = 0; $j <= $try; $j++ )
         {
             if( $tryfix{$i} )
             {
@@ -88,8 +89,7 @@ sub run
             }
 
             %succ = () if $repeat;
-            my %excluded = map{ $_ => 1 }@{$ctrl->excluded()};
-
+            my %excluded = map{ $_ => 1 }map{@$_}@{$ctrl->excluded()};
             my @ex = grep{ $excluded{$_} }@node;
             my @su = grep{ $succ{$_} }@node;
             my @gr = grep{ ! $cache->{succ}{$grep}{$_} }@node if $grep;
@@ -101,6 +101,11 @@ sub run
             my @node = grep{ ! $succ{$_} }grep{ ! $excluded{$_} }@node;
             @node = grep{ $cache->{succ}{$grep}{$_} }@node if $grep;
 
+            unless( @node )
+            { 
+                ( $i, $j ) = ( 1000000, 1000000 );
+                print "warn skip all redo and retry\n";
+            }
             last if ! @node && $tryfix{$i};
            
 
@@ -202,7 +207,7 @@ sub run
 
     }
 
-    printf "succ[%d]:%s\nfail[%s]:%s\n", &$rx( keys %succ ) , &$rx( grep{ ! $succ{$_} }@node );
+    printf( "succ[%d]:%s\nfail[%s]:%s\n", &$rx( keys %succ ) , &$rx( grep{ ! $succ{$_} }@node ) ) unless $quiet;
 
     return %succ;
 }

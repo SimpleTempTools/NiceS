@@ -142,7 +142,7 @@ for my $n ( sort keys %res )
 my @rr = 
 (
 +{
-  name => '奇虎',
+  name => '公司',
   type => 'hermes',
   child =>[
 

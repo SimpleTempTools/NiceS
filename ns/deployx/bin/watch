@@ -1,0 +1,62 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Hermes;
+use Data::Dumper;
+use NS::Util::OptConf;
+use NS::OpenAPI::Ctrl;
+use NS::OpenAPI::Lock;
+use NS::OpenAPI::Deploy;
+use NS::DeployX::Cache;
+
+$| ++;
+
+$NS::Util::OptConf::THIS = 'deployx';
+
+my %o = NS::Util::OptConf->load()->set( interval => 2 )->get( qw( interval=i ) )->dump();
+
+my $range = NS::Hermes->new();
+my $ctrl = NS::OpenAPI::Ctrl->new();
+my $lock = NS::OpenAPI::Lock->new();
+my $deploy = NS::OpenAPI::Deploy->new();
+
+my %name = map{$_ => 1 }@ARGV;
+
+do
+{
+    system 'clear';
+    my %data;
+    map{ $data{$_->[0]}{lock} = $_ }@{$lock->dump()};
+    map{ push @{$data{$_->[1]}{stuck}}, $_ }$ctrl->dump();
+    for my $name ( keys %data )
+    {
+        next if %name && ! $name{$name};
+        printf "$name: => (%s)\n",
+            $data{$name}{lock} ? join( "#", map{$data{$name}{lock}[$_]}1..3 ): 'norun';
+
+        my $deploy = NS::OpenAPI::Deploy->new( name => $name );
+        my $mark = $deploy->mark();
+        print "\tmark: $mark->{curr}\n" if $mark && ref $mark eq 'HASH' && $mark->{curr};
+        next unless my $s = $data{$name}{stuck};
+        map{ printf "\t%s\n", join "#",@$_ }@$s;
+        next unless %name;
+        print "logs:\n";
+        system( "tail -n 20 '$o{logs}/$name'" ) if "$o{logs}/$name";
+        print "cache\n";
+        my $cache = NS::DeployX::Cache->new( $name )->cache();
+
+        for ( 0 .. @{$cache->{step}} - 1  )
+        {
+             my $step = $cache->{step}[$_];
+             my @succ = ( $cache->{succ}{$step} ) ? keys %{$cache->{succ}{$step}} : ();
+             printf "%s : $step:\t[%s]:%s\n", $cache->{glob}[$_] ? 'Glob ' : 'Batch',
+                 ,scalar $range->load( \@succ )->list(), $range->load( \@succ )->dump;
+        }
+
+        map{
+            printf "[%s]:%s\n", scalar $range->load( $_ )->list(), $range->load( $_ )->dump;
+        }@{$cache->{node}};
+    }
+}while( sleep $o{interval} );
+

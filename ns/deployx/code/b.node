@@ -1,4 +1,4 @@
-#!/da1/s/ops/perl/bin/perl: deploy/code/b.node
+#!/home/s/ops/perl/bin/perl: deploy/code/b.node
 use warnings;
 use strict;
 use File::Spec;
@@ -14,10 +14,18 @@ return sub
     my $target = $param{target};
 
     my $range = NS::Hermes->new( NS::Util::OptConf->load()->dump( 'range' ) );
+    my ( $db, %broken, %exclude ) = $range->db;
+
+    map{
+        push @{$broken{$_->[0]}}, [ $_->[1],$_->[2]];
+    }$db->select( 'node,attr,info', name => [ 1, 'broken' ] );
 
     for my $target ( @$target )
     {
-        my @node = sort $range->load( $target->[0] )->list;
+        my @node = sort grep{ ! $broken{$_} }
+                   map{ $exclude{$_} = 1 if $broken{$_}; $_ }
+                   $range->load( $target->[0] )->list;
+
         my @bindex = split /:/, $target->[1];
 
         if( my $sort = $param{sort} )
@@ -29,7 +37,7 @@ return sub
 
         if( my $each = $param{each} )
         {
-            $each = '\.(\w+?)\d?\.qqqq\.net$' if $each eq 'idc';
+            $each = '\.(\w+?)\d?\.nices\.net$' if $each eq 'idc';
 
             my ( %type, %count );
             map{ $_ =~ /$each/; push @{$type{$1||'null'}}, $_; }@node;
@@ -67,6 +75,11 @@ return sub
         printf "[WARN] The test pattern:%s\n", $batch[0][0];
         @batch = $batch[0][0]? ([$batch[0][0]]): ();
     }
+
+    map
+    {
+       printf "[Warn] $_ in broken table=>%s\n", join "#", map{ join ":", @$_ } @{$broken{$_}}
+    }keys %exclude;
 
     return @batch;
 };

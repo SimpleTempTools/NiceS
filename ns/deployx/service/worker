@@ -1,0 +1,60 @@
+#!/usr/bin/env perl
+use strict;
+use Vayne::Socks;
+use Vayne::Worker;
+use Data::Printer;
+use Storable qw(thaw freeze);
+use JSON::XS;
+use YAML::XS;
+use JSON;
+use Data::Dumper;
+use FindBin qw( $RealBin );
+
+use NS::OpenAPI::Deploy;
+use Sys::Hostname;
+
+our @p = qw( main conf user );
+register 'deploy' => sub {
+    my($workload, $step, $result, $status) = @_;
+    print "workload:$workload\n";
+    
+    my $conf = eval{ JSON::from_json $workload };
+    if( $@ )
+    {
+        warn "ERR:load json err:$@\n";
+        return $status->(0);
+    }
+    p $conf;
+    my %p;
+    map{ 
+        unless( $conf->{$_} =~ /^[\w:_\.-]+$/ )
+        {
+            warn "ERR:$_ = $conf->{$_} format nomatch ^[\w\.-]+$ \n";
+            return $status->(0);
+        }
+
+    }keys %$conf;   
+    
+    map{ 
+        unless( $conf->{$_} )
+        {
+            warn "ERR:$_ undef\n";
+            return $status->(0);
+        }
+        $p{$_} = 1;
+    }( 'name', @p );   
+
+    my %argv;
+    map{ $argv{"--$_ '$conf->{$_}'"} = 1 if defined $conf->{$_} }( @p, 'myid' );
+    map{ $argv{"$_='$conf->{$_}'"} = 1 } grep{ ! $p{$_} }keys %$conf;
+
+    my $openapi = NS::OpenAPI::Deploy->new( name => $p{name} );
+    $openapi->myid( $p{myid} => hostname );
+
+    my $cmd = sprintf " /usr/bin/nohup $RealBin/../bin/deployx.d '$conf->{name}' %s &", 
+                  join ' ', keys %argv;
+    print "$cmd\n";
+    $status->( ! system($cmd) );
+
+};
+Vayne::Worker->run;

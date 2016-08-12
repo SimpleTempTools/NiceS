@@ -1,0 +1,34 @@
+#!/home/s/ops/perl/bin/perl: deploy/code/m.lock
+use strict;
+use warnings;
+use Data::Dumper;
+use LWP::UserAgent;
+
+return sub
+{
+    my %param = @_;
+    my ( $batch, $param, $sc, $step ) = @param{qw(batch param sc step )};
+
+    my $info = $param->{info} || 'deployx locked.';
+
+     return map{ $_ => 1 }@{$param{batch}} 
+         if $param->{only} && ref $param->{only} eq 'ARRAY' 
+            && 0 == grep{ $_ == $step }@{$param->{only}};
+
+    print "lock: $info\n" and die "$info\n" unless $param->{url};
+
+    my $ua = LWP::UserAgent->new();
+    $ua->agent( 'Mozilla/9 [en] (Centos; Linux)' );
+    $ua->timeout( 10 );
+
+    my $node = join ',', @{$param{batch}};
+    my $res = $param->{get}  ? $ua->get( "$param->{url}$param->{get}=$node" ) : 
+              $param->{post} ? $ua->post( $param->{url}, +{ $param->{post} => $node } ) : 
+                               $ua->get( $param->{url} );
+
+    map{ print $_; return (); }( "get $param->{url} fail\n" ) unless $res->is_success;
+    return ( map{ $_ => 1 }@{$param{batch}} ) if $param->{whole};
+    my %succ = map{ $_ => 1 } split /\n/, $res->content;
+
+    return map{ $_ => 1 }grep{ $succ{$_} }@{$param{batch}};
+};

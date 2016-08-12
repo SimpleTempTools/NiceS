@@ -1,0 +1,19 @@
+#!/home/s/ops/perl/bin/perl: deploy/code/m.show
+use strict;
+use File::Spec;
+use Data::Dumper;
+use Time::HiRes qw( time );
+
+return sub
+{
+    my ( %param , %succ ) = @_;
+
+    my ( $node, $param ) = @param{qw( node param )};
+    #print "=" x 30,"\n";
+    #sleep 1+ int rand 10;
+    #sleep 1;
+
+    print Dumper \%param;
+    #return int rand 2;
+    return ();
+};

@@ -1,0 +1,93 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Hermes;
+use Data::Dumper;
+use NS::Util::OptConf;
+use File::Basename;
+use Mail::Send;
+
+$| ++;
+
+
+my %deployx = NS::Util::OptConf->load()->dump( 'deployx' );
+
+my ( $path, $mail ) = @deployx{ qw( report mail ) };
+
+exit unless $path && $mail;
+
+my $time = $ARGV[0] || 43200;
+
+$time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime( time - $time ) );
+
+my @title = qw ( 开始时间 结束时间 发布名称 版本号 操作者 );
+
+my @report;
+
+map
+{
+    my $appname = basename $_;
+    map
+    {
+        my $name = basename $_;
+        my $dir = dirname $_;
+        if( $name ge $time && $name =~ /^\d+.+_\d+.+\d+$/ )
+        {
+            my $info = eval{ YAML::XS::LoadFile "$path/$appname/logs/$name" };
+            eval 
+            {
+                unless( @{ $info->{todo} } )
+                {
+                    my $start_time = $1 if $info->{info}->{argv} =~ /\s+myid=(\S+).*/;
+                    my $end_time = POSIX::strftime( "%Y-%m-%d_%H:%M:%S", localtime( ( stat( "$path/$appname/logs/$name" ) )[9] ) );
+                    my $user = $1 if $info->{info}->{argv} =~ /.+--user\s+(\S+).+/;
+                    my $pkg_version = $2 if $info->{info}->{argv} =~ /\s+(version|version\S+)=(\S+).*/;
+                    push @report, [ $start_time, $end_time, $appname, $pkg_version || "unknown", $user || "unknown" ];
+                }
+            }
+       }
+    } glob "$path/$appname/logs/*"
+} glob "$path/*";
+
+exit unless @report;
+
+my $html = '<!DOCTYPE html>';
+$html .= '<html><head><title>Title of the document</title></head><body>';
+$html .= '<table border="1" width="90%" cellpadding="0" cellspacing="0">';
+
+$html .= '<tr align="center" bgcolor="DeepSkyBlue" >';
+map{ Encode::_utf8_on($_); $html .= "<th>$_</th>"; }@title;
+$html .= '</tr>';
+
+my $olddate;
+map
+{
+    $html .= '<tr align="center">';
+    $_->[0] =~ /(2014-\d+-\d+)/;
+    my $date = $1;
+    $html .= sprintf "<tr align=\"center\" bgcolor=\"CornflowerRed\" ><td colspan=\"%d\" >$date</td></tr>", scalar @title
+        if !$olddate || $olddate ne $date;
+    $olddate = $date;
+
+    map{ $html .= "<td>$_</td>";}@$_;
+    $html .= '</tr>';
+}@report;
+
+$html .= '</table>';
+$html .= '</body></html>';
+
+use Mail::Sendmail;
+use Encode;
+
+Encode::_utf8_off($html);
+my %mail = (
+          To      => 'lijinfeng2011@gmail.com',
+          From    => 'webDeploy@today.com',
+          Subject => sprintf( 'Web deploy summary: %s ~ %s',$time , POSIX::strftime( "%Y.%m.%d_%H.%M.%S", localtime )),
+          Message => $html,
+          'Content-Type' => 'text/html; charset=utf8',
+         );
+
+sendmail(%mail) or die $Mail::Sendmail::error;
+print "OK. Log says:\n", "$Mail::Sendmail::log\n";

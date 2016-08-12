@@ -1,0 +1,113 @@
+#!/home/s/ops/perl/bin/perl: deploy/code/m.exec
+use strict;
+use Data::Dumper;
+use NS::Hermes;
+use File::Spec;
+use File::stat;
+use Data::Dumper;
+
+use AnyEvent;
+use NS::Poros::Query;
+use NS::AE::Poros;
+use YAML::XS;
+
+
+my ( $conf, $port );
+BEGIN{
+    my %poros = NS::Util::OptConf->load()->dump('poros');
+    ( $conf, $port ) = @poros{qw( conf port )};
+};
+
+my %run = ( timeout => 300, max => 500, user => 'root' );
+sub task
+{
+    my ($cv, $suc, $err, %params) = @_;
+    my $node = $params{node};
+    my %query =
+    (
+        code => 'exec', logname => $params{user}, user => $params{user},
+        argv => $params{bin}
+    );
+
+    $cv->begin;
+    NS::AE::Poros::invoke(
+        $node => $port,
+        NS::Poros::Query->dump(\%query),
+        sub{
+            my $msg = shift;
+            unless ( $msg ){ $err->($node, "null" ); return; }
+
+            ( $msg =~ s/--- (\d+)\n$// && $1 == 0 ) 
+                ? $suc->($node, $msg) 
+                : $err->($node, "exit code $1: $msg" );
+
+        },
+        sub{ $err->($node, "NS::AE::Poros::invoke err" ) },
+        $cv,
+    );
+    return 1;
+};
+
+return sub
+{
+    my %param = @_;
+
+    my ( $batch, $param, $sc ) = @param{qw(batch param sc )};
+
+    return unless my $bin = $param->{bin};
+    $bin = [ $bin ] unless ref $bin;
+
+    print YAML::XS::Dump $param;
+    print "=" x 35 ,"\n";
+    my ( %succ, %re );
+    my @node = @$batch;
+    my $condvar = AnyEvent->condvar;
+    my $worker; $worker = sub
+    {
+        my $node = shift @node;
+        return unless $node;
+        task(
+            $condvar,                                         
+            sub{
+                my ( $node, $info ) = @_;
+#               print "$node:\n$info\n";
+                $succ{$node} = 1; 
+                $re{$node} = $info;
+                &$sc( $node => 1 );
+                $worker->();
+            },       
+            sub{
+                my ( $node, $info ) = @_;
+#               print "$node:\n$info\n";
+                $re{$node} = $info;
+                $worker->();
+            },      
+            node => $node, bin => $bin, user => $param->{user} || $run{user}
+        );
+    };
+    
+    my $max = $param->{max} || $run{max};
+    $max = scalar @node if $max > @node;
+    $worker->() for 1 .. $max;
+    
+    my $w = AnyEvent->timer(
+        #after => 1,
+        after => $param->{timeout} ||$run{timeout},
+        cb => sub { $condvar->send("AnyEvent TIMEOUT"); }
+    );
+    print $condvar->recv, "\n";
+    undef $w;  
+
+    map{ $re{$_} = "norun" unless exists $re{$_} }@$batch;
+    my %r;
+    map{ $re{$_} =~ s/$_/{}/g; push @{$r{$re{$_}}}, $_;}keys %re;
+    
+    my $range = NS::Hermes->new();
+
+    for my $m ( keys %r )
+    {
+        printf "[%s]:%s\n", scalar @{$r{$m}},  $range->load( $r{$m} )->dump();
+        print "$m\n"
+    }
+    return %succ;
+};

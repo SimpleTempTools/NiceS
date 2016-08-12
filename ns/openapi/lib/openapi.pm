@@ -2,7 +2,6 @@ package openapi;
 use Dancer ':syntax';
 use Data::Dumper;
 use NS::Util::OptConf;
-use NS::DeployX::Conn;
 use JSON;
 
 our $VERSION = '0.1';
@@ -15,8 +14,9 @@ any '/readme' => sub {
     template 'openapi';
 };
 
-any '/test' => sub {
-
-};
+#any '/test' => sub { return 'any'; };
+get '/test' => sub { return 'get'; };
+put '/test' => sub { return 'put'; };
+post '/test' => sub { return 'post'; };
 
 true;

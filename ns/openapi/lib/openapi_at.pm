@@ -66,6 +66,12 @@ any '/debug' => sub {
     template 'openapi_at_debug', +{ active => $active, all => $all }; 
 };
 
+any '/mon' => sub { 
+    my $count = eval{ query( "select count(*) from at") };
+    return ref $count ? $count->[0][0] : 0;
+};
+
+
 any '/chatroom' => sub { 
     my $user = params()->{user};
     session user => $user;

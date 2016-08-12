@@ -32,8 +32,15 @@ set serializer => 'JSON';
 
 any '/readme' => sub { template 'openapi_lock'; };
 
+any '/mon' => sub {
+     eval{ query( sprintf "select count(*) from $TABLE" )};
+     return $@ ? "ERR:$@" : "ok";
+};
+
 any '/dump' => sub {
-    my $r = eval{ query( "select `name`,`host`,`pid`,`time` from $TABLE" ) };
+    my $param = params();
+    die "format error\n" if check( %$param );
+    my $r = eval{ query( sprintf "select `name`,`host`,`pid`,`time` from $TABLE %s", $param->{name} ? "where name='$param->{name}'":'' ) };
     return $@ ? +{ stat => $JSON::false, info => $@ } : 
                 +{ stat => $JSON::true,  info => '', data => $r };
 };

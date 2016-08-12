@@ -1,0 +1,31 @@
+mysql:
+  openapi_lock:
+    '.*':
+      host: deployx_lock_mysql
+      username: root
+      password: 'nices123***'
+
+  openapi_ctrl:
+    '.*':
+      host: deployx_ctrl_mysql
+      username: root
+      password: 'nices123***'
+
+  openapi_umesg:
+    '.*':
+      host: deployx_umesg_mysql
+      username: root
+      password: 'nices123***'
+
+redis:
+  servers:
+    '.*':
+      server: deployx_redis:6379
+  expire:
+    - ['collect:cluster', 600]
+    - ['counts', 300]
+    - ['error:ssh', 120]
+    - ['UNIONSESSION', 86400]
+    - ['.*', 240]
+
+

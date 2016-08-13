@@ -3,12 +3,12 @@
 use strict;
 use warnings;
 
-use Hermes;
-use Vulcan::OptConf;
+use NS::Hermes;
+use NS::Util::OptConf;
 
 return sub
 {
-    my $db = Hermes->new( Vulcan::OptConf->load()->dump( 'range' ) )->db;
+    my $db = NS::Hermes->new( NS::Util::OptConf->load()->dump( 'range' ) )->db;
     my %cluster = map { $_ => 1 } map { @$_ } $db->select( 'name' );
 
     +{ map { $_ => [ map { @$_ } $db->select( 'node', name => [ 1, $_ ] ) ] }

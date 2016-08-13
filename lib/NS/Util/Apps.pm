@@ -5,7 +5,6 @@ use warnings;
 
 use Carp;
 use YAML::XS;
-use NS::Apps::Route;
 
 sub new
 {

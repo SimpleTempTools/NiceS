@@ -18,12 +18,11 @@ update hermes cache
 my %o = NS::Util::OptConf->load()->set( interval => 5 )->get( qw( interval=i ) )->dump();
 my $openapi = NS::OpenAPI::Hermes->new();
 
-my ( $path, $tmp ) = ( "$o{cache}/current" , '/tmp/nices.hermes.cache' );
+my ( $path, $tmp ) = ( "$o{cache}/current" , "$o{cache}/.download" );
 
 map{ unlink $_ if -f $_ }
     grep{ $_ =~ m#$tmp.\d+.tmp# }
         glob "$tmp.*.tmp";
-
 
 my $i;
 while(1)

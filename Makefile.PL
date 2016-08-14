@@ -6,6 +6,7 @@ use ExtUtils::MakeMaker;
 our %PREREQ_PM =
 (
     DBI => 1.625,
+    JSON => 2.90,
     Dancer => 1.31,
     Expect => 1.21,
     threads => 1.80,

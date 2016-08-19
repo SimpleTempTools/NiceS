@@ -2,56 +2,47 @@ package NS::Util::Logger;
 
 =head1 NAME
 
-NS::Util::Logger - thread safe logger
+Util::Logger - thread safe logger
 
 =head1 SYNOPSIS
 
- use NS::Util::Logger;
+ use Util::Logger;
 
- my $log = NS::Util::Logger->new( $handle );
+ my $log = Util::Logger->new( $handle );
 
- $log->say( 'foo', 'bar' );
+ $log->info( 'foo', 'bar' );
+ $log->info( 'foo', 'bar' );
 
 =cut
-use strict;
 use warnings;
 
-use Carp;
-use POSIX;
-use Thread::Semaphore;
+use Vulcan::Logger;
+use base Exporter;
+our @EXPORT_OK = qw( debug verbose info warning error );
 
-=head1 HANDLE
 
-Must be a writable handle. Defaults to STDERR.
+my (%level, $logger) = (debug => -2, verbose => -1, info => 0, warning => 1, error => 2);
 
-=cut
-our $HANDLE = \*STDERR;
+sub ini{ $logger = Vulcan::Logger->new(@_); }
 
-sub new
+sub debug{ _say(caller, 'debug', @_) };
+sub verbose{ _say(caller, 'verbose', @_) };
+sub info{ _say(caller, 'info', @_) };
+sub warning{ _say(caller, 'warning', @_) };
+sub error{ _say(caller, 'error', @_) };
+
+sub _say
 {
-    my ( $class, $handle ) = splice @_;
-    bless { handle => $handle || $HANDLE, mutex => Thread::Semaphore->new() },
-        ref $class || $class;
-}
+    NS::Util::Logger::ini unless $logger;
 
-=head1 METHODS
+    my($package, $filename, $line, $level, @str, $l) = @_;
+    $l = $level{ $ENV{NS_LOG_LEVEL} } if $ENV{NS_LOG_LEVEL};
 
-=head3 say( @list )
+    $l ||= $level{'info'};
 
-I<say> @list to log. Returns invoking object.
+    return unless $level{$level} >= $l;
 
-=cut
-sub say
-{
-    my $self = shift;
-    my $handle = $self->{handle};
-    if ( @_ )
-    {
-        $self->{mutex}->down();
-        syswrite $handle, POSIX::sprintf( @_ ) . "\n";
-        $self->{mutex}->up();
-    }
-    return $self;
+    $logger->say('[%s][%s:%s]: %s', $level, $package, $line, join(' ', grep{$_}@str) );
 }
 
 1;

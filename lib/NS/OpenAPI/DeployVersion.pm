@@ -9,7 +9,7 @@ use Sys::Hostname;
 use base qw( NS::OpenAPI );
 
 our $URI = '/openapi/deployversion';
-our @idc = qw( bjdt shjc zzbc2 gzst );
+our @idc = qw( nices );
 
 sub version
 {

@@ -1,0 +1,29 @@
+#!/home/s/ops/perl/bin/perl: port
+use strict;
+use Data::Dumper;
+use IO::Socket::INET;
+
+#code: port
+#param:
+#  tcp: 8080
+#  udp: 53
+#
+
+
+return sub
+{
+    my %param = @_;
+
+    my ( $node, $param, $verbose ) = @param{qw( node param verbose )};
+
+    my ( $port, $proto );
+    map{ ( $port, $proto ) = ( $param->{$_}, $_ ) if $param->{$_} }qw( tcp udp );
+
+    IO::Socket::INET->new(
+         PeerAddr => "$node:$port", Blocking => 0,
+         Timeout => 10, Type => SOCK_STREAM,
+         Proto => $proto 
+    )
+        ?  print "$proto => $node:$port :OK\n" : die "$proto:$node:$port :FAIL\n";
+    return 1;
+};

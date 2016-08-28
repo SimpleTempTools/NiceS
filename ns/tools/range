@@ -9,7 +9,7 @@ use NS::Util::OptConf;
 $| ++;
 
 my $option = NS::Util::OptConf->load();
-my %o = $option->get( qw( list count show ) )->dump();
+my %o = $option->get( qw( list count show dump ) )->dump();
 
 my $cluster = NS::Hermes->new( $option->dump( 'range' ) );
 my $range = NS::Hermes->new();
@@ -52,6 +52,16 @@ elsif ( $o{show} )
     exit 0;
 }
 
+elsif( $o{dump} )
+{
+    my @d = $range->list();
+    my %c = @d ? ( name => [ 1, @d ] ): ();
+    my @r = $cluster->db()->select( 'name,attr,node,info', %c ); 
+
+    my %r; map{ $r{$_->[0]}{$_->[1]}{$_->[2]}= $_->[3]}@r;
+    print STDOUT YAML::XS::Dump \%r;
+    exit 0;
+}
 =head3 normalize
 
 Print a range expression

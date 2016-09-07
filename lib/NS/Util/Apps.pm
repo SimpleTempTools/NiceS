@@ -56,7 +56,7 @@ sub do
                 for my $cmd ( @$cmd )
                 {
                     map{ $cmd =~ s/\$macro{$_}/$macro{$_}/g; }keys %macro;
-                    my @bad = $cmd =~ /\$macro{(\w+)}/g;
+                    my @bad = $cmd =~ /\$macro\{(\w+)\}/g;
                     if( @bad )
                     {
                         my %bad = map{$_=>1}@bad;

@@ -154,7 +154,7 @@ sub macro
     if ( $path && defined $ROOT )
     {
         $path =~ s/\$ROOT\b/$ROOT/g;
-        $path =~ s/\${ROOT}/$ROOT/g;
+        $path =~ s/\$\{ROOT\}/$ROOT/g;
     }
 
     return $path;

@@ -33,7 +33,7 @@ map{
 }@ARGV;
 my $node = shift @ctrl || hostname;
 
-my $data = $openapi->dump( $ENV{HOSTNAME} || $node );
+my $data = $openapi->dump( $node );
 unless( $o{apps} )
 {
     print "apps:\n";

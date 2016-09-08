@@ -335,6 +335,10 @@ sub do
         my $mark;
         ( $ctrl, $mark ) = ( $1, $2 ) if $ctrl =~ /^(.+):(\d+)$/;
 
+        my %nore;
+        map{  map{ $nore{$_} = 1 }$data{$_} =~ /(\$macro\{[\w_]+\})/g; }qw(  link repo path );
+        exit 1 if %nore && printf "macro no replace: %s\n", join ' ', keys %nore;
+
         die "no command $ctrl\n" unless $ctrl{$ctrl};
         &{$ctrl{$ctrl}}( $this, data => \%data, macro => \%macro, mark => $mark );
     }

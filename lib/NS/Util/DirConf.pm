@@ -129,9 +129,9 @@ sub macro
     if ( $path )
     {
         $path =~ s/\$Bin\b/$Bin/g; $path =~ s/\$RealScript\b/$RealScript/g;
-        $path =~ s/\${Bin}/$Bin/g; $path =~ s/\${RealScript}/$RealScript/g;
+        $path =~ s/\$\{Bin\}/$Bin/g; $path =~ s/\$\{RealScript\}/$RealScript/g;
         $path =~ s/\$Script\b/$Script/g; $path =~ s/\$RealBin\b/$RealBin/g;
-        $path =~ s/\${Script}/$Script/g; $path =~ s/\${RealBin}/$RealBin/g;
+        $path =~ s/\$\{Script\}/$Script/g; $path =~ s/\$\{RealBin\}/$RealBin/g;
     }
     return $path;
 }

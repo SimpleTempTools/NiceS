@@ -72,6 +72,8 @@ sub load
         && eval { $query = YAML::XS::Load $yaml }
         && ref $query eq 'HASH' && $query->{code};
 
+    die "code format error\n" unless $query->{code} =~ /^[A-Za-z0-9_\.]+$/;
+
     my %o = NS::Util::OptConf->load()->dump( 'poros' );
     if( $o{'auth'} && -d $o{'auth'} && $query->{code} !~ /^free\./ )
     {

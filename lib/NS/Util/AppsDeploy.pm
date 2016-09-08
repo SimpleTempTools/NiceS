@@ -323,7 +323,7 @@ sub do
     my %data = %{$data->{ctrl}};
     for my $t ( qw(  link repo path ) )
     {
-        map{ $data{$t} =~ s/\$macro{$_}/$macro{$_}/g; }keys %macro;
+        map{ $data{$t} =~ s/\$macro\{$_\}/$macro{$_}/g; }keys %macro;
     }
     unless( @$ctrl )
     {

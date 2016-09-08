@@ -56,7 +56,7 @@ sub explain
     $path = File::Spec->join( $path, $basename );
     my $pack = File::Spec->join( $path, $basename );
 
-    $this->stage( %param, mark => undef ) unless -e $pack && "$path/info/stage.succ";
+    $this->stage( %param, mark => undef ) unless -e $pack && -e "$path/info/stage.succ";
     my $succ = "$path/info/explain.succ";
 
     my $packtype = $tmp =~ s/\.tar\.gz$// ? 'tar.gz' : $tmp =~ s/\.tar$// ? 'tar' : 'raw';

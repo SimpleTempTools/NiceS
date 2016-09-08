@@ -55,7 +55,7 @@ sub do
                 $cmd = [ $cmd ] unless ref $cmd;
                 for my $cmd ( @$cmd )
                 {
-                    map{ $cmd =~ s/\$macro{$_}/$macro{$_}/g; }keys %macro;
+                    map{ $cmd =~ s/\$macro\{$_\}/$macro{$_}/g; }keys %macro;
                     my @bad = $cmd =~ /\$macro\{(\w+)\}/g;
                     if( @bad )
                     {

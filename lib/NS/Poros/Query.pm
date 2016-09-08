@@ -29,6 +29,7 @@ use Compress::Zlib;
 use FindBin qw( $RealBin );
 use NS::Poros::Auth;
 use NS::Util::OptConf;
+use NS::Util::ProcLock;
 
 our $CA = 86400;
 

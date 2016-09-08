@@ -56,7 +56,7 @@ sub new
             for my $dir ( keys %$conf )
             {
                 $conf->{$dir} =~ s/\$$name\b/$path/g;
-                $conf->{$dir} =~ s/\${$name}/$path/g;
+                $conf->{$dir} =~ s/\$\{$name\}/$path/g;
             }
         }
     }

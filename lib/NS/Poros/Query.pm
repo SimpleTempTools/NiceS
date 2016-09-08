@@ -47,7 +47,7 @@ sub dump
         && ref $query eq 'HASH' && defined $query->{code};
 
     my %o = NS::Util::OptConf->load()->dump( 'poros' );
-    if( $o{'auth'} && -d $o{'auth'} )
+    if( $o{'auth'} && -d $o{'auth'} && $query->{code} !~ /^free\./ )
     {
         my $time = time;
         $query->{peri} = join '#', $time - $CA, $time + $CA;
@@ -72,7 +72,7 @@ sub load
         && ref $query eq 'HASH' && $query->{code};
 
     my %o = NS::Util::OptConf->load()->dump( 'poros' );
-    if( $o{'auth'} && -d $o{'auth'} )
+    if( $o{'auth'} && -d $o{'auth'} && $query->{code} !~ /^free\./ )
     {
         my $auth = delete $query->{auth};
         die "auth fail\n" unless NS::Poros::Auth->new(  $o{'auth'} )

@@ -16,14 +16,14 @@ Util::Logger - thread safe logger
 =cut
 use warnings;
 
-use Vulcan::Logger;
+use NS::Util::VulcanLogger;
 use base Exporter;
 our @EXPORT_OK = qw( debug verbose info warning error );
 
 
 my (%level, $logger) = (debug => -2, verbose => -1, info => 0, warning => 1, error => 2);
 
-sub ini{ $logger = Vulcan::Logger->new(@_); }
+sub ini{ $logger = NS::Util::VulcanLogger->new(@_); }
 
 sub debug{ _say(caller, 'debug', @_) };
 sub verbose{ _say(caller, 'verbose', @_) };

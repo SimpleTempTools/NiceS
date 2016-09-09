@@ -57,7 +57,7 @@ sub dump
 
     my ( $main, $conf ) = map{
         my $s = YAML::XS::Dump $_;
-        map { $s =~ s/\$macro{$_}/$macro->{$_}/g; } keys %$macro;
+        map { $s =~ s/\$macro\{$_\}/$macro->{$_}/g; } keys %$macro;
         map{ $macro{$_} = 1 }$s =~ /(\$macro\{[\w_]+\})/g;
         my $n = YAML::XS::Load $s;
         $n;

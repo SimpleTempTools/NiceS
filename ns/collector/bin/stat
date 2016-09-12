@@ -50,7 +50,7 @@ my %cc; map{ $cc{$_} = [sort keys %{$c{$_}}] }keys %c;
 my $tc = 1;
 map{ map{ $tc= $1 if $_ =~ /<\s*\d+\s*\/\s*(\d+)\s*>\s*$/ && $1 > $tc; }@$_ }values %cc; 
 
-push @info, 'TEST', map{ $_ =~ /{(\w+)}{[^}]+}{[^}]+}/g; }@eval if @eval;
+push @info, 'TEST', map{ $_ =~ /\{(\w+)\}\{[^}]+\}\{[^}]+\}/g; }@eval if @eval;
 $o{interval} = 3 if $tc > 1 && ! $o{interval} && ( @include || @exclude );
 
 my $info;

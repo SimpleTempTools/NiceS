@@ -39,7 +39,7 @@ sub co
     ];
 
 
-    map{ $proc{$1} = 1 if $_ =~ /^{PROC}{([^}]+)}/ }@jobs;
+    map{ $proc{$1} = 1 if $_ =~ /^\{PROC\}\{([^}]+)\}/ }@jobs;
 
     my %data;
     for my $jobs ( keys %proc )

@@ -13,7 +13,7 @@ sub co
 
     push @stat, [ 'WATCH', 'current', 'type' ];
 
-    map{ $watch{$1} = 1 if $_ =~ /^{WATCH}{([^}]+)}{\w+}/ }@watch;
+    map{ $watch{$1} = 1 if $_ =~ /^\{WATCH\}\{([^}]+)\}\{\w+\}/ }@watch;
 
     for my $watch ( keys %watch )
     {

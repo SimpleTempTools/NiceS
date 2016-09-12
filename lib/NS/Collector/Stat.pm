@@ -69,8 +69,8 @@ sub new
     if( my $test = $self{test} )
     {
         map{ 
-            map{ map{ $todo{$_} = 1 } $_ =~ /({[\w:_]+}{[^}]+}{[^}]+})/g;} @$_; 
-            map{ map{ $todo{$_} = 1 } $_ =~ /({[\w:_]+}<[^>]+>{[^}]+})/g;} @$_; 
+            map{ map{ $todo{$_} = 1 } $_ =~ /(\{[\w:_]+\}\{[^\}]+\}\{[^\}]+\})/g;} @$_; 
+            map{ map{ $todo{$_} = 1 } $_ =~ /(\{[\w:_]+\}<[^>]+>\{[^\}]+\})/g;} @$_; 
         }values %$test;
         map{ my $g = $_; map{ $eval{$_}{group} = $g }@{$test->{$g}}}keys %$test;
 

@@ -29,7 +29,7 @@ sub co
 {
     my ( $this, @port, %port ) = shift;
 
-    map{ $port{$1} = 1 if $_ =~ /^{PORT}{([^}]+)}/ }@_;
+    map{ $port{$1} = 1 if $_ =~ /^\{PORT\}\{([^}]+)\}/ }@_;
 
     push @port, [ 'PORT', 'status', 'output' ];
 

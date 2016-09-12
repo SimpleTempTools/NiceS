@@ -14,7 +14,7 @@ sub co
 {
     my ( $this, %cache, @stat ) = shift;
 
-    map{ $cache{$1} = 1 if $_ =~ /^{CACHE:([\w:_]+)}{/ }@_;
+    map{ $cache{$1} = 1 if $_ =~ /^\{CACHE:([\w:_]+)\}\{/ }@_;
     my $redis = NS::Bone::Redis->new("read");
     my @keys = keys %cache;
     my @mesg = $redis->mget( @keys );

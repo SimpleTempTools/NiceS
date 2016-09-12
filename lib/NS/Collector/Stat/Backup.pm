@@ -18,7 +18,7 @@ sub co
 
     return \@stat unless $path && -d $path;
 
-    map{ $backup{$1} = $2 if $_ =~ /^{BACKUP}{([\w\/*.:_-]+)}{(\d+)}/ }@backup;
+    map{ $backup{$1} = $2 if $_ =~ /^\{BACKUP\}\{([\w\/*.:_-]+)\}\{(\d+)\}/ }@backup;
 
     for my $backup ( keys %backup )
     {

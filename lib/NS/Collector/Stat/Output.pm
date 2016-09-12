@@ -17,7 +17,7 @@ sub co
 
     push @stat, [ 'OUTPUT', 'stdout', 'md5sum', 'exit' ];
 
-    map{ $output{$1} = 1 if $_ =~ /^{OUTPUT}{([^}]+)}/ }@output;
+    map{ $output{$1} = 1 if $_ =~ /^\{OUTPUT\}\{([^}]+)\}/ }@output;
 
     for my $output ( keys %output )
     {

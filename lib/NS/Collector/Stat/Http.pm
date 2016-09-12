@@ -29,7 +29,7 @@ sub co
 {
     my ( $this, @http, @stat, %http ) = shift;
 
-    map{ $http{$1} = 1 if $_ =~ /^{HTTP}{([^}]+)}/ }@_;
+    map{ $http{$1} = 1 if $_ =~ /^\{HTTP\}\{([^}]+)\}/ }@_;
 
     push @http, [ 'HTTP', 'code', 'is_success', 'status_line', 'cont' ];
 

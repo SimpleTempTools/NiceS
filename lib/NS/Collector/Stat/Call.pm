@@ -11,7 +11,7 @@ sub co
 {
     my ( $this, @call, @stat, %call ) = shift;
 
-    map{ $call{$1} = 1 if $_ =~ /^{CALL}{([^}]+)}/ }@_;
+    map{ $call{$1} = 1 if $_ =~ /^\{CALL\}\{([^}]+)\}/ }@_;
 
     push @call, [ 'CALL', 'exit', 'stderr' ];
 

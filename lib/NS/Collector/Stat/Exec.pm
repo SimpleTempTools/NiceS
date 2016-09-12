@@ -16,7 +16,7 @@ sub co
 
     push @stat, [ 'EXEC', 'exit', 'stdout' ];
 
-    map{ $exec{$1} = 1 if $_ =~ /^{EXEC}{([^}]+)}/ }@exec;
+    map{ $exec{$1} = 1 if $_ =~ /^\{EXEC\}\{([^}]+)\}/ }@exec;
 
     for my $exec ( keys %exec )
     {

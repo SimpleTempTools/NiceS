@@ -40,7 +40,8 @@ sub do
                         ? print "$apps -> $app\n"
                         : die sprintf "$apps match conflict %s\n", join ':', @match;;
 
-        my $conf = $data->{$app}{ctrl};
+        die "$app no data\n" unless my $conf = $data->{$app}{ctrl};
+
         my %macro = ( %$macro, %{$data->{$app}{macro}});
         unless( @$ctrl )
         {

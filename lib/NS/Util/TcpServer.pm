@@ -53,11 +53,11 @@ sub run
     {
         threads::async
         {
-            while ( my $fileno = $conn[0]->dequeue() )
+            while ( my ( $fileno, $ip, $port ) = $conn[0]->dequeue(3) )
             {
                 if( open my $client, '+<&=', $fileno )
                 {
-                    $this->_server( $client );
+                    $this->_server( $client, $ip, $port );
                     close $client;
                 }
 
@@ -88,17 +88,18 @@ sub run
             
             $conn{$cfileno} = $client;
             printf $status, scalar keys %conn;
-            $conn[0]->enqueue( $cfileno );
+            $conn[0]->enqueue( $cfileno,  _addr( $client ) );
         }
     }
 }
 
 sub _server
 {
-    my ( $this, $socket ) = @_;
+    my ( $this, $socket, $ip, $port ) = @_;
 
     my ( $IN, $OUT, $buffer );
-    my $childpid = open2($OUT, $IN, $this->{'exec'} );
+
+    my $childpid = open2($OUT, $IN, "TCPREMOTEIP=$ip TCPREMOTEPORT=$port $this->{'exec'}" );
 
     while( NS::Util::Sysrw->read( $socket, $buffer, $MAX{maxbuf} ) )
     {
@@ -113,6 +114,27 @@ sub _server
     NS::Util::Sysrw->write( $socket, join '', @out);
 }
 
+sub _addr
+{
+    my $remote_sockaddr = getpeername( shift );
+    my $family = sockaddr_family($remote_sockaddr);
+
+    my ( $iport, $iaddr ) = $remote_sockaddr
+                            ? ( ($family == AF_INET6) ? sockaddr_in6($remote_sockaddr)
+                                                      : sockaddr_in($remote_sockaddr) )
+                            : (undef,undef);
+
+    my $loopback = ($family == AF_INET6) ? "::1" : "127.0.0.1";
+    my $peeraddr = $loopback;
+    if ($iaddr) {
+        my ($host_err,$addr, undef) = Socket::getnameinfo($remote_sockaddr,Socket::NI_NUMERICHOST);
+        warn ($host_err) if $host_err;
+        $peeraddr = $addr || $loopback;
+    }
+    $peeraddr = '0.0.0.0' unless $peeraddr && $peeraddr =~ /^\d+\.\d+\.\d+\.\d+$/;
+    $iport = '0' unless $iport && $iport =~ /^\d+$/;
+    return ( $peeraddr, $iport );
+}
 
 1;
 

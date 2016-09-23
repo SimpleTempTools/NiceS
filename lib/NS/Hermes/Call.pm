@@ -59,7 +59,7 @@ sub select
     my ( $self, $name, $cond ) = splice @_;
     return () unless my $code = $self->{$name};
 
-    my $result = &$code();
+    my $result = &$code( cond => $cond );
     return () unless $result && ref $result eq 'HASH';
 
     my ( $match, @val ) = shift @$cond;

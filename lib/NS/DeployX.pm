@@ -102,7 +102,7 @@ sub run
     else
     {
 
-        @batch = &{$code->{$main->{code}}}( %{$main->{param}} );
+        @batch = &{$code->{$main->{code}}}( %{$main->{param}}, name => $name );
         $cache->{node} = \@batch;
         $cache->{info} = $info;
     }

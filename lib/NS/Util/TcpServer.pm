@@ -11,12 +11,12 @@ use IO::Select;
 
 use NS::Util::Sysrw;
 use IPC::Open2;
+use POSIX ":sys_wait_h";
 
-our %MAX = 
+our %RUN = 
 (
-    listen => 50, 
-    thread => 1,  
-    maxconn => 300, 
+    maxcon => 10,
+    listen => 10, 
     maxbuf => 2 ** 12,
 );
 
@@ -31,7 +31,7 @@ sub new
     die "setsockopt: $!"
         unless setsockopt $socket, SOL_SOCKET, SO_REUSEADDR, 1;
     die "bind (port $port): $!\n" unless bind $socket, $addr;
-    die "listen: $!\n" unless listen $socket, $MAX{listen};
+    die "listen: $!\n" unless listen $socket, $RUN{listen};
 
     $this{sock} = $socket;
 
@@ -42,11 +42,64 @@ sub new
 
 sub run
 {
-    my $this = shift;
+    my $this = shift @_;
+    my %run = ( %RUN, @_);
+    return $run{thread} ?  $this->thread( %run ) : $this->proc( %run );
+}
+
+sub proc
+{
+    my ( $this, %run ) = @_;
+
+    my $select = new IO::Select( $this->{sock} );
+    my $status = "tcpserver: status: \%s/$run{maxcon}\n";
+    printf $status, 0;
+
+    our %pid;
+    $SIG{'CHLD'} = sub {
+        while((my $pid = waitpid(-1, WNOHANG)) >0)
+        {
+            delete $pid{$pid};
+        }
+        printf $status, scalar keys %pid;
+    };
+
+
+    while ( 1 )
+    {
+        if ( my ( $server, $client ) = $select->can_read( 0.5 ) )
+        {
+            accept $client, $server;
+
+            if( keys %pid > $run{maxcon} )
+            {
+                close $client;
+                warn "connection limit reached\n";
+            }
+            elsif( my $pid = fork() )
+            {
+                $pid{$pid}=1;
+                printf $status, scalar keys %pid;
+            }
+            else
+            {
+                my $cfileno = fileno $client;
+                open my $client, '+<&=', $cfileno;
+                $this->_server( $client, _addr( $client ) );
+                close $client;
+                exit;
+            }
+        }
+    }
+}
+
+sub thread
+{
+    my ( $this, %run ) = @_;
 
     my $select = new IO::Select( $this->{sock} );
     my @conn = map { Thread::Queue->new } 0 .. 1;
-    my $status = "tcpserver: status: \%s/$this->{thread}\n";
+    my $status = "tcpserver: status: \%s/$run{maxcon}\n";
     printf $status, 0;
 
     map
@@ -64,7 +117,8 @@ sub run
                 $conn[1]->enqueue( $fileno );
             }
         }->detach()
-    } 1 .. $MAX{thread};
+    } 1 .. $run{maxcon};
+
 
     my %conn;
     while ( 1 )
@@ -80,15 +134,17 @@ sub run
             accept $client, $server;
             my $cfileno = fileno $client;
 
-            if ( $conn[0]->pending > $MAX{maxconn} )
+            if ( $conn[0]->pending > $run{maxcon} )
             {
                 close $client;
                 warn "connection limit reached\n";
             }
-            
-            $conn{$cfileno} = $client;
-            printf $status, scalar keys %conn;
-            $conn[0]->enqueue( $cfileno,  _addr( $client ) );
+            else
+            {
+                $conn{$cfileno} = $client;
+                printf $status, scalar keys %conn;
+                $conn[0]->enqueue( $cfileno,  _addr( $client ) );
+            }
         }
     }
 }
@@ -101,7 +157,7 @@ sub _server
 
     my $childpid = open2($OUT, $IN, "TCPREMOTEIP=$ip TCPREMOTEPORT=$port $this->{'exec'}" );
 
-    while( NS::Util::Sysrw->read( $socket, $buffer, $MAX{maxbuf} ) )
+    while( NS::Util::Sysrw->read( $socket, $buffer, $RUN{maxbuf} ) )
     {
         print $IN $buffer;
     }

@@ -1,8 +1,10 @@
-#!/home/s/ops/perl/bin/perl
+#!/data/scripts/nices/perl/bin/perl
 
 =head1 SYNOPSIS
 
- $0 [--port num] [--thread num] script
+ $0 [--port num] [--max num] script
+
+ $0 [--port num] [--max num] --thread script
 
 =cut
 use strict;
@@ -18,11 +20,13 @@ $| ++;
 #@NS::Util::OptConf::CONF = qw( pass_through no_ignore_case );
 
 my $option = NS::Util::OptConf->load();
-my %o = $option->set( port => 4000, max => 40 )->get( qw( port=i max=i ) )->dump();
+my %o = $option->set( port => 4000, max => 20 )->get( qw( port=i max=i thread ) )->dump();
 
 
 NS::Util::TcpServer->new(
     port  => $o{port},
-    thread => $o{max},
     'exec' => shift
-)->run();
+)->run( 
+    maxcon => $o{max},
+    thread => $o{thread}
+);

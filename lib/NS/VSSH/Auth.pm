@@ -47,4 +47,11 @@ sub checkpw
     return 0;
 }
 
+sub loadpw
+{
+    my $user = shift->{user};
+
+    $passwd = $ENV{PASSWD} ||  read_password( "$user\'s password: " );
+    return 1;
+}
 1;

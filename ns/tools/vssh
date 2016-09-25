@@ -1,4 +1,4 @@
-#!/home/s/ops/perl/bin/perl
+#!/data/scripts/nices/perl/bin/perl
 use strict;
 use warnings;
 
@@ -12,21 +12,22 @@ use NS::Util::OptConf;
 =head1 SYNOPSIS
 
  $0 [--range host] [--user user] [--max maxthread] [--timeout num] [--verbose] 
-        [--hostdb /my/hostdb/path ]
+        [--hostdb /my/hostdb/path ] [--checkpw]
     
 =cut
 
 $NS::Util::OptConf::THIS = 'vssh';
 
 my $option = NS::Util::OptConf->load();
-my %o = $option->get( qw( range=s user=s max=i timeout=i hostdb=s verbose ) )->dump();
+my %o = $option->get( qw( range=s user=s max=i timeout=i hostdb=s verbose checkpw ) )->dump();
 
 my $range = NS::Hermes->new( $option->dump( 'range' ) );
  
 my $user = $o{user} || `logname`;
 chomp $user;
 
-exit 0 unless NS::VSSH::Auth->new( user => $user )->checkpw( 3 );
+my $auth = NS::VSSH::Auth->new( user => $user );
+exit 0 unless $o{checkpw} ? $auth->checkpw( 3 ) : $auth->loadpw();
 
 mkdir $o{hostdb} if $o{hostdb} && ! -d $o{hostdb};
 

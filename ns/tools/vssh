@@ -7,6 +7,7 @@ use NS::Hermes;
 
 use NS::VSSH;
 use NS::VSSH::Auth;
+use NS::VSSH::VMIO;
 use NS::Util::OptConf;
 
 =head1 SYNOPSIS
@@ -30,6 +31,9 @@ my $auth = NS::VSSH::Auth->new( user => $user );
 exit 0 unless $o{checkpw} ? $auth->checkpw( 3 ) : $auth->loadpw();
 
 mkdir $o{hostdb} if $o{hostdb} && ! -d $o{hostdb};
+
+$NS::VSSH::VMIO::ssh = $o{ssh} if $o{ssh};
+$NS::VSSH::VMIO::scp = $o{scp} if $o{scp};
 
 NS::VSSH->new( 
     timeout => $o{timeout},

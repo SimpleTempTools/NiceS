@@ -8,6 +8,9 @@ use Net::SSH::Perl;
 use Term::ReadPassword;
 use Expect;
 
+our $ssh = 'ssh';
+our $scp = 'scp';
+
 our %vmio = 
 (
     ssh => sub
@@ -33,9 +36,9 @@ our %vmio =
             my $exec = "$tmppath/$id.exec";
             my @exec = 
                 (
-                    sprintf( "scp '$tmppath/$id.todo' %s$node:$exec 1>/dev/null 2>&1",
+                    sprintf( "$scp '$tmppath/$id.todo' %s$node:$exec 1>/dev/null",
                         $user ? "$user@" : '' ),
-                    sprintf( "ssh -o StrictHostKeyChecking=no -c blowfish %s %s $node %s '%s;%s;%s'", 
+                    sprintf( "$ssh -o StrictHostKeyChecking=no -c blowfish %s %s $node %s '%s;%s;%s'", 
                         $tty ? $tty == 1 ? "-t" : "-tt" : '',
                         $user ? "-l $user" : '',
                         $sudo ? "sudo -H -u $sudo" : '',
@@ -48,7 +51,7 @@ our %vmio =
            unless( $config->{sshSafeModel} )
            {
                @exec = (
-                   sprintf( "ssh -o StrictHostKeyChecking=no -c blowfish %s %s $node %s '%s;%s'",
+                   sprintf( "$ssh -o StrictHostKeyChecking=no -c blowfish %s %s $node %s '%s;%s'",
                        $tty ? $tty == 1 ? "-t" : "-tt" : '',
                        $user ? "-l $user" : '',
                        $sudo ? "sudo -H -u $sudo" : '',

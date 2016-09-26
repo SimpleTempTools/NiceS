@@ -1,0 +1,42 @@
+#!/data/scripts/nices/perl/bin/perl
+use strict;
+use warnings;
+
+use NS::Util::Sudo;
+use NS::Util::OptConf;
+use Data::Dumper;
+
+use NS::Bootstrap;
+NS::Util::Sudo->sudo();
+
+$| ++;
+
+$NS::Util::OptConf::THIS = 'bootstrap';
+
+=head1 SYNOPSIS
+
+ $0 --install
+
+ $0 --uninstall  
+         ( uninstall: Not recommended )
+    
+=cut
+
+my %o = NS::Util::OptConf->load()->get( qw( install uninstall run ) )->dump();
+
+my $bootstrap = NS::Bootstrap->new( %o );
+
+if( $o{install} )
+{
+    system "ln -fsn /data/scripts/nices/ns/bootstrap/cron /etc/cron.d/nices.bootstrap.cron";
+}
+elsif( $o{uninstall} )
+{
+    unlink '/etc/cron.d/nices.bootstrap.cron';
+    system "killall nices.bootstrap.master";
+    system 'ps -ef|grep [n]ices.bootstrap.worker|awk '."'".'{print $2}'."'".'|xargs -i{} kill {}';
+}
+elsif( $o{run} )
+{
+    $bootstrap->run();
+}

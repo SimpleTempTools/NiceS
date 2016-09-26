@@ -1,0 +1,4 @@
+#!/bin/sh
+ulimit -n 655350;ulimit -u 102400;ulimit -s 10240;
+
+exec /data/scripts/nices/ns/tools/tcpserver -p 65123 -m 10 /data/scripts/nices/ns/daemon/bin/../../poros/bin/proxy 2>&1

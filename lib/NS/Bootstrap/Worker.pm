@@ -57,6 +57,8 @@ sub run
     confess "open log: $!" unless open $logH, ">>$logf";
     $logH->autoflush;
 
+    print $logH unixtai64n(time), " [$name] ". '[start]', "\n";
+
     my %info = ( $rdr => "[info]", $err => '[error]' );
     while(1)
     {

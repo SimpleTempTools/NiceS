@@ -1,4 +1,0 @@
----
-- [ 'yes\/no', 'yes\n', 'continue' ]
-- [ '[Pp]assword', '$passwd\n', 'continue' ]
-- [ '[Pp]ermission denied', '$passwd\n', 'return' ]

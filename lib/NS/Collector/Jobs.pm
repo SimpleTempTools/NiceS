@@ -28,8 +28,11 @@ sub new
 
     $this{jobs} = '' unless $this{jobs} && $this{jobs} =~ /^[\w_]+$/;
     map{ $this{$_} = "$this{$_}_$this{jobs}" if $this{jobs} }qw( data logs );
-    map{ confess "no $_\n" unless $this{$_} && -d $this{$_} }
-        qw( conf code logs data );
+    map{ 
+        confess "no $_\n" unless $this{$_};
+        system "mkdir -p '$this{$_}'" unless -d $this{$_} 
+    }
+    qw( conf code logs data );
    
     $this{conf} = sprintf "$this{conf}/config%s", $this{jobs} ? "_$this{jobs}" : '';
 

@@ -25,6 +25,7 @@ my %o = $option->get( qw( range=s user=s max=i timeout=i hostdb=s verbose checkp
 my $range = NS::Hermes->new( $option->dump( 'range' ) );
  
 my $user = $o{user} || `logname`;
+$user ||= 'unknown';
 chomp $user;
 
 my $auth = NS::VSSH::Auth->new( user => $user );

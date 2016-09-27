@@ -16,7 +16,7 @@ sub new
     my ( $class, %this ) = @_;
     map{ 
         confess "$_ undef" unless $this{$_};
-        mkdir $this{$_} unless -d $this{$_};
+        system "mkdir -p '$this{$_}'" unless -d $this{$_};
     }qw( logs exec lock );
     bless \%this, ref $class || $class;
 }

@@ -9,6 +9,7 @@ use NS::VSSH;
 use NS::VSSH::Auth;
 use NS::VSSH::VMIO;
 use NS::Util::OptConf;
+use FindBin qw( $RealBin );
 
 =head1 SYNOPSIS
 
@@ -35,6 +36,15 @@ mkdir $o{hostdb} if $o{hostdb} && ! -d $o{hostdb};
 
 $NS::VSSH::VMIO::ssh = $o{ssh} if $o{ssh};
 $NS::VSSH::VMIO::scp = $o{scp} if $o{scp};
+
+my $alias = "$RealBin/../util/vssh.alias";
+if( -f $alias )
+{   
+    my $a = eval{ YAML::XS::LoadFile $alias };
+    die "load $alias:$@" if $@;
+    $NS::VSSH::VMIO::ssh = $a->{ssh} if $a->{ssh};
+    $NS::VSSH::VMIO::scp = $a->{scp} if $a->{scp};
+}
 
 NS::VSSH->new( 
     timeout => $o{timeout},

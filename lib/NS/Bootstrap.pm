@@ -54,9 +54,9 @@ sub run
 
     my $worker = NS::Bootstrap::Worker->new( %$this );
 
-    while( sleep 6 )
+    while( $i++ )
     {
-        $i++;
+        sleep 6;
         my @name = map{ basename $_ }glob "$exec/*";
 
         unless( $i % 3 )

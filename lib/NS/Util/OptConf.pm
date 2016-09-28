@@ -18,7 +18,7 @@ use FindBin qw( $RealScript $RealBin );
 
 local $| = 1;
 
-our ( $ARGC, $THIS, $CONF, $ROOT, @CONF ) = ( 0, $RealScript, '.config' );
+our ( $ARGC, $THIS, $CONF, $PRIVATE, $ROOT, @CONF ) = ( 0, $RealScript, '.config', '.config.private' );
 
 =head1 SYNOPSIS
 
@@ -45,7 +45,10 @@ sub load
 {
     my $class = shift;
     my $self = {};
-    my @conf =  map { File::Spec->join( $RealBin, $_, $CONF ) } qw( . .. ../.. ../../.. );
+    my @conf =  map { 
+        my $p = $_;
+        map{ File::Spec->join( $RealBin, $p, $_ ) }( $CONF, $PRIVATE )
+    } qw( . .. ../.. ../../.. );
     my ( $conf ) = @_ ? @_ : grep { -l $_ || -f $_ } @conf;
 
     if ( $conf )

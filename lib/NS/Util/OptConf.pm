@@ -47,7 +47,7 @@ sub load
     my $self = {};
     my @conf =  map { 
         my $p = $_;
-        map{ File::Spec->join( $RealBin, $p, $_ ) }( $CONF, $PRIVATE )
+        map{ File::Spec->join( $RealBin, $p, $_ ) }( $PRIVATE, $CONF )
     } qw( . .. ../.. ../../.. );
     my ( $conf ) = @_ ? @_ : grep { -l $_ || -f $_ } @conf;
 

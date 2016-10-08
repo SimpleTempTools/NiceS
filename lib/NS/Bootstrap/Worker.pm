@@ -37,6 +37,7 @@ sub run
     return if fork();
     exit if fork;
 
+    return if $plock->check();
     $plock->lock();
 
     $0 = "nices.bootstrap.worker.$name";

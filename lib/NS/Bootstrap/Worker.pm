@@ -7,7 +7,7 @@ use Fcntl;
 use IPC::Open3;
 use IO::Select;
 use Symbol qw(gensym);
-use Time::HiRes qw/time/;
+use Time::HiRes qw/time sleep/;
 use Time::TAI64 qw/unixtai64n/;
 
 use NS::Util::ProcLock;
@@ -37,7 +37,7 @@ sub run
     return if fork();
     exit if fork;
 
-    return if $plock->check();
+    exit if $plock->check();
     $plock->lock();
 
     $0 = "nices.bootstrap.worker.$name";
@@ -66,7 +66,7 @@ sub run
         for my $h ( $ios->can_read() )
         { 
             my $rv = <$h>;
-            next unless $rv;
+            unless( $rv ){ sleep 0.5; next; }
             print $logH unixtai64n(time), " [$name] ". $info{$h}||'[warn]',' ', $rv;
         }
     }

@@ -61,7 +61,6 @@ sub run
 
     $err = gensym;
     our $pid = IPC::Open3::open3( $wtr, $rdr, $err, "$exec/$name" );
-    map{ _nonblock($_) }( $rdr, $err );
 
     $SIG{'CHLD'} = sub { exit; };
     $SIG{USR1} = sub { confess "open log: $!" unless open $logH, ">>$logf"; };
@@ -75,14 +74,19 @@ sub run
 
     if( $mix )
     {
-        while( <$rdr> )
+        while(1)
         {
-            unless( $_ ){ sleep 0.5; next; }
-            print $logH unixtai64n(time), " [$name] ", $_;
+            while( <$rdr> )
+            {
+                unless( $_ ){ sleep 0.5; next; }
+                print $logH unixtai64n(time), " [$name] [mix] ", $_;
+            }
+            sleep 6;
         }
     }
     else
     {
+        #map{ _nonblock($_) }( $rdr, $err );
         my %info = ( $rdr => "[info]", $err => '[error]' );
         my $ios = IO::Select->new( $rdr, $err );
         while(1)

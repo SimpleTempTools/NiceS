@@ -11,6 +11,7 @@ use Time::HiRes qw/time sleep/;
 use Time::TAI64 qw/unixtai64n/;
 
 use NS::Util::ProcLock;
+use NS::Bootstrap;
 
 my %RUN =( size => 10000, keep => 5 );
 
@@ -34,6 +35,10 @@ sub run
     my $plock = NS::Util::ProcLock->new( "$lock/$name.lock" );
     return if $plock->check();
 
+    $NS::Bootstrap::time{$name} ||= 1;
+    return if $NS::Bootstrap::time{$name} + 60 > time;
+    $NS::Bootstrap::time{$name} = time;
+
     return if fork();
     exit if fork;
 
@@ -44,11 +49,19 @@ sub run
 
     our ( $logf, $logH ) = ( "$logs/current" );
 
-    my($wtr, $rdr, $err);
+    my($wtr, $rdr, $err, $mix );
+
+    if( -f "$exec/$name" )
+    {
+        my @cont;
+        map{ chomp $_;$_ =~ s/#.*//g; push @cont, $_ if $_; }`cat '$exec/$name'`;
+        my $mark = pop @cont;
+        $mix = 1 if $mark && $mark =~ /^\s*exec.+2>&1\s*$/;
+    }
+
     $err = gensym;
     our $pid = IPC::Open3::open3( $wtr, $rdr, $err, "$exec/$name" );
     map{ _nonblock($_) }( $rdr, $err );
-    my $ios = IO::Select->new( $rdr, $err );
 
     $SIG{'CHLD'} = sub { exit; };
     $SIG{USR1} = sub { confess "open log: $!" unless open $logH, ">>$logf"; };
@@ -60,14 +73,26 @@ sub run
 
     print $logH unixtai64n(time), " [$name] ". '[start]', "\n";
 
-    my %info = ( $rdr => "[info]", $err => '[error]' );
-    while(1)
+    if( $mix )
     {
-        for my $h ( $ios->can_read() )
-        { 
-            my $rv = <$h>;
-            unless( $rv ){ sleep 0.5; next; }
-            print $logH unixtai64n(time), " [$name] ". $info{$h}||'[warn]',' ', $rv;
+        while( <$rdr> )
+        {
+            unless( $_ ){ sleep 0.5; next; }
+            print $logH unixtai64n(time), " [$name] ", $_;
+        }
+    }
+    else
+    {
+        my %info = ( $rdr => "[info]", $err => '[error]' );
+        my $ios = IO::Select->new( $rdr, $err );
+        while(1)
+        {
+            for my $h ( $ios->can_read() )
+            { 
+                my $rv = <$h>;
+                unless( $rv ){ sleep 0.5; next; }
+                print $logH unixtai64n(time), " [$name] ". $info{$h}||'[warn]',' ', $rv;
+            }
         }
     }
     exit;

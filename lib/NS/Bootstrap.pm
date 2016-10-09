@@ -10,6 +10,7 @@ use NS::Bootstrap::Worker;
 use POSIX qw( :sys_wait_h );
 
 my %RUN =( size => 10000000, keep => 5 );
+our %time;
 
 sub new
 {

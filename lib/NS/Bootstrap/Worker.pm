@@ -97,6 +97,7 @@ sub run
                 unless( $rv ){ sleep 0.5; next; }
                 print $logH unixtai64n(time), " [$name] ". $info{$h}||'[warn]',' ', $rv;
             }
+            sleep 1;
         }
     }
     exit;

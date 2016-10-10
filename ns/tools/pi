@@ -1,0 +1,17 @@
+#!/home/s/ops/perl/bin/perl
+use strict;
+use warnings;
+use NS::Util::OptConf;
+use NS::Util::PI;
+
+=head1 SYNOPSIS
+
+ $0 [--max number] [ --accuracy number] [--quiet]
+    
+=cut
+
+my %o = NS::Util::OptConf->load()->set( max => 128, accuracy => 500 )
+            ->get( qw( max=i accuracy=i quiet ))->dump();
+
+$NS::Util::PI::VERBOSE = 1 unless $o{quiet};
+NS::Util::PI->new( %o )->run( );

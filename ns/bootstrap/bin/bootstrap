@@ -34,7 +34,7 @@ if( $o{reload} )
     for my $name ( map{  $_ =~ /\*/ ? ( map{ basename $_ }glob "$o{lock}/$_" ): "$_.lock"} @ARGV ? @ARGV : ( '*' ) )
     {
         next unless $name =~ s/\.lock$//g;
-        printf "$name: %s\n", $bootstrap->kill( $name, 'KILL' ) ? "kill" : "undo";
+        printf "$name: %s\n", $bootstrap->kill( $name, 'TERM' ) ? "kill" : "undo";
     }
 }
 elsif( $o{install} )

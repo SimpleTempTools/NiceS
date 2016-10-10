@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 
+use File::Basename;
 use NS::Util::Sudo;
 use NS::Util::OptConf;
 use Data::Dumper;
@@ -19,14 +20,24 @@ $NS::Util::OptConf::THIS = 'bootstrap';
 
  $0 --uninstall  
          ( uninstall: Not recommended )
+
+ $0 --reload
     
 =cut
 
-my %o = NS::Util::OptConf->load()->get( qw( install uninstall run ) )->dump();
+my %o = NS::Util::OptConf->load()->get( qw( install uninstall run reload ) )->dump();
 
 my $bootstrap = NS::Bootstrap->new( %o );
 
-if( $o{install} )
+if( $o{reload} )
+{
+    for my $name ( map{  $_ =~ /\*/ ? ( map{ basename $_ }glob "$o{lock}/$_" ): "$_.lock"} @ARGV ? @ARGV : ( '*' ) )
+    {
+        next unless $name =~ s/\.lock$//g;
+        printf "$name: %s\n", $bootstrap->kill( $name, 'KILL' ) ? "kill" : "undo";
+    }
+}
+elsif( $o{install} )
 {
     system "ln -fsn /data/scripts/nices/ns/bootstrap/cron /etc/cron.d/nices.bootstrap.cron";
 }

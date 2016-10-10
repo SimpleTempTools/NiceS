@@ -68,14 +68,14 @@ sub run
                 {
                     my $num = $this->_num();
                     system "mv '$logs/current' '$logs/log.$num'";
-	            map{ $this->_s2w( $_ ) }@name;
+	            map{ $this->kill( $_ ) }@name;
                 }
             }
-            else { map{ $this->_s2w( $_ ) }@name; }
+            else { map{ $this->kill( $_ ) }@name; }
         }
         unless( $i % 600 )
         {
-            map{ $this->_s2w( $_ ) }@name;
+            map{ $this->kill( $_ ) }@name;
         }
         for my $name ( @name )
         {
@@ -95,9 +95,9 @@ sub _num
     return ( sort{ $time{$a} <=> $time{$b} } keys %time )[0];
 }
 
-sub _s2w
+sub kill
 {
-    my ( $this, $name ) = @_;
+    my ( $this, $name, $SIGNAL ) = @_;
     my $lock = $this->{lock};
 
     my $plock = NS::Util::ProcLock->new( "$lock/$name.lock" );
@@ -107,6 +107,7 @@ sub _s2w
     chomp $cmdline;
     return unless $cmdline eq "nices.bootstrap.worker.$name";
 
-    kill 'USR1', $pid;
+    $SIGNAL ||= 'USR1';
+    kill $SIGNAL, $pid;
 }
 1;

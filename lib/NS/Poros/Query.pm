@@ -97,7 +97,7 @@ sub run
 {
     my ( $self, %path ) = @_;
     my $query = $self->{query};
-    my ( $code, $user ) = @$query{ qw( code user ) };
+    my ( $code, $user, $env ) = @$query{ qw( code user env ) };
 
     die "already running $code\n" if ( $code =~ /\.mx$/ ) && !
         NS::Util::ProcLock->new( File::Spec->join( $path{run}, $code ) )->lock();
@@ -113,6 +113,8 @@ sub run
         POSIX::setgid( $pw[1] ); ## setgid must preceed setuid
         POSIX::setuid( $pw[0] );
     }
+
+    %ENV = ( %ENV, %$env ) if $env && ref $env eq 'HASH';
 
     &$code( pdir => File::Basename::dirname( $RealBin ), %$query );
 }

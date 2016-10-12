@@ -16,11 +16,11 @@ use NS::OpenAPI::Apps;
 
 my $openapi = NS::OpenAPI::Apps->new();
 
-my %addr = map{ $_ => 1 } grep{ $_ ne '127.0.0.1' } `ifconfig` =~ /inet addr:(\d+\.\d+\.\d+\.\d+)/g;
-$addr{Sys::Hostname::hostname} = 1;
+my %addr = ( Sys::Hostname::hostname => 1 );
+map{ chomp $_; map{ $addr{$_} = 1 }split /\s+/, $_; }`hostname -I`;
 
 my $data = $openapi->dump( $ENV{VHOSTNAME} || join ',', keys %addr );
-my %o = NS::Util::OptConf->load()->get( qw( apps=s print verbose ) )->dump();
+my %o = NS::Util::OptConf->load()->get( qw( apps=s service=s list print verbose ) )->dump();
 
 unless( $o{apps} )
 {

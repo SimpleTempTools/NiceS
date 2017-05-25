@@ -28,4 +28,25 @@ if( my $conf = $ENV{conf} )
 
 die "rsync ns to '$nices/ns/' fail.\n" if system "rsync -a ns.i/ '$nices/ns/'";
 
+my ( $cpan, $do )= $perl;$cpan =~ s/perl$/cpan/;
+for(0..2)
+{
+    warn "check PREREQ_PM\n";
+    if( system "$perl -e \"use YAML::XS\"" )
+    {
+         system( "$cpan install YAML::XS" );
+         $do = 1;
+    }
+    use YAML::XS;
+    my $x = eval{ YAML::XS::LoadFile 'MYMETA.yml' };
+    map{
+        if( system "$perl -e \"use $_\"" )
+        {
+            system( "$cpan install $_" );
+            $do = 1;
+        }
+    }keys %{$x->{requires}};
+    last unless $do;
+};
+
 exit 0;

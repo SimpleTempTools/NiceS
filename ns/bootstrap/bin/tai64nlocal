@@ -1,4 +1,4 @@
-#!/data/scripts/nices/perl/bin/perl
+#!/home/work/nices/perl/bin/perl
 use strict;
 use warnings;
 

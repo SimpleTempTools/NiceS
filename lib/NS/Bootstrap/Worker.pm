@@ -68,7 +68,7 @@ sub run
     $SIG{INT} = sub { unlink "$lock/$name.lock"; kill 'INT', $pid; exit;};
 
     confess "open log: $!" unless open $logH, ">>$logf";
-    $logH->autoflush;
+#    $logH->autoflush;
 
     print $logH unixtai64n(time), " [$name] ". '[start]', "\n";
 

@@ -33,5 +33,5 @@ return sub
     }
 
     print "ok\n";
-    return 0;
+    exit 0;
 };

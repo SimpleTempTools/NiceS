@@ -1,4 +1,0 @@
----
-command: $RealBin/../../../Nproject/service/dump2sqlite3
-before: 'ulimit -n 655350;ulimit -u 102400;ulimit -s 10240'
-user: root

@@ -61,11 +61,10 @@ while ( my ( $type, $mesg ) = each %result )
     {
         map { $_ =~ s/:$port$// } @$node;
 
-        $mesg =~ s/--- \d+\n$//;
+#        $mesg =~ s/--- \d+\n$//;
         $node = $range->load( $node );
         $node = sprintf "%s[%d]", $node->dump(), scalar $node->list;
-        my @m = eval{ YAML::XS::Load( $mesg ) } if $mesg;
-        $mesg{$type}{$node} = $@ ? $mesg : @m >1 ? \@m : $m[0];
+        $mesg{$type}{$node} = $mesg;
     }
 }
 

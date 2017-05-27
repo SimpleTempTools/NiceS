@@ -1,7 +1,8 @@
-#!/data/scripts/nices/perl/bin/perl
+#!/usr/bin/env perl
 use strict;
 use warnings;
 
+use NS::nices;
 use File::Basename;
 use NS::Util::Sudo;
 use NS::Util::OptConf;
@@ -22,6 +23,7 @@ $NS::Util::OptConf::THIS = 'bootstrap';
          ( uninstall: Not recommended )
 
  $0 --reload
+ $0 --run
     
 =cut
 
@@ -39,7 +41,7 @@ if( $o{reload} )
 }
 elsif( $o{install} )
 {
-    system "ln -fsn /data/scripts/nices/ns/bootstrap/cron /etc/cron.d/nices.bootstrap.cron";
+    system "echo '* * * * * root $NS::nices::NiceS/ns/bootstrap/bin/bootstrap --run 1>/dev/null 2>&1' > /etc/cron.d/nices.bootstrap.cron";
 }
 elsif( $o{uninstall} )
 {

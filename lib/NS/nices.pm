@@ -9,6 +9,22 @@ nices - A suite of cluster administration tools and platforms
 
 =cut
 our $VERSION = '0.2.9';
+our $NiceS;
+
+require 5.000;
+require Exporter;
+our @EXPORT_OK = qw( $NiceS );
+our @ISA = qw(Exporter);
+
+BEGIN{
+   my @path;
+   for( split /\//,  __FILE__ )
+   {
+       push @path, $_;
+       last if $_ eq 'nices';
+   }
+   $ENV{NiceSPATH} = $NiceS = @path ? join '/', @path : '/tmp/nices';
+};
 
 =head1 MODULES
 

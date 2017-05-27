@@ -12,7 +12,7 @@ our %PREREQ_PM =
     threads => 1.80,
     DateTime => 1.03,
     'IO::Stty' => 0.03,
-    'YAML::XS' => 0.41,
+    'YAML::XS' => 0.65,
     'DBD::SQLite' => 1.37,
     'Getopt::Long' => 2.38,
     'Thread::Queue' => 2.12,
@@ -20,6 +20,16 @@ our %PREREQ_PM =
 
     'Term::ANSIColor' => 3.00,
     'Term::ReadPassword' => 0.11,
+
+    'Time::TAI64' => 0,
+    'AnyEvent' => 0,
+    'Crypt::PK::RSA' => 0,
+    'Term::Completion' => 0,
+    'Net::SSH::Perl' => 0,
+    'Template' => 0,
+    'Dancer::Plugin::Database' => 0,
+    'DBD::mysql' => 0,
+    'Mail::Sendmail' => 0,
 );
 
 our $PKG_NAME = 'nices';

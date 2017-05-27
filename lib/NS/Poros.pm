@@ -45,7 +45,7 @@ sub run
     my $query = NS::Poros::Query->load( <> );
     warn $query->yaml();
 
-    YAML::XS::DumpFile \*STDOUT, $query->run( %{ $self->{path}->path() } );
+    $query->run( %{ $self->{path}->path() } );
 }
 
 1;

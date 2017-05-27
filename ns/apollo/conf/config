@@ -1,8 +1,0 @@
-"A":
-  code: foo
-  param:
-    p1: a
-
-"B":
-  apollo: [ "A" ]
-  code: foo

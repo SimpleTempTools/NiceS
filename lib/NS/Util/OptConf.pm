@@ -15,6 +15,7 @@ use File::Basename;
 use Getopt::Long;
 use Pod::Usage;
 use FindBin qw( $RealScript $RealBin );
+use NS::nices qw( $NiceS );
 
 local $| = 1;
 
@@ -158,6 +159,9 @@ sub macro
     {
         $path =~ s/\$ROOT\b/$ROOT/g;
         $path =~ s/\$\{ROOT\}/$ROOT/g;
+
+        $path =~ s/\$NiceS\b/$NiceS/g;
+        $path =~ s/\$\{NiceS\}/$NiceS/g;
     }
 
     return $path;

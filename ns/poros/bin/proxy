@@ -15,4 +15,4 @@ $NS::Util::OptConf::THIS = 'poros';
 
 my %o = NS::Util::OptConf->load()->dump();
 NS::Poros->new( $o{path} )->run();
-exit 0;
+exit 1;

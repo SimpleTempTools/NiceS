@@ -1,5 +1,0 @@
----
-command: tcpserver -v -H -l localhost 0 12345 $RealBin/../../poros/bin/proxy
-
-before: 'ulimit -n 655350;ulimit -u 102400;ulimit -s 10240'
-user: root

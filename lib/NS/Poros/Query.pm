@@ -79,7 +79,7 @@ sub load
         && eval { $query = YAML::XS::Load $yaml }
         && ref $query eq 'HASH' && $query->{code};
 
-    die "code format error\n" unless $query->{code} =~ /^[A-Za-z0-9_\.]+$/;
+    die "code format error:$query->{code}\n" unless $query->{code} =~ /^[A-Za-z0-9_\.]+$/;
 
     if( $o{'auth'} && $query->{code} !~ /^free\./ )
     {

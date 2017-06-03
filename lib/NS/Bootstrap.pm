@@ -8,10 +8,18 @@ use File::Basename;
 use NS::Util::ProcLock;
 use NS::Bootstrap::Worker;
 use POSIX qw( :sys_wait_h );
+use AnyEvent::Loop;
+use AnyEvent;
 
-my %RUN =( size => 10000000, keep => 5 );
+use IPC::Open3;
+use Symbol 'gensym';
+use Time::TAI64 qw/unixtai64n/;
+
+my %RUN =( size => 10, keep => 5 );
+#my %RUN =( size => 10000000, keep => 5 );
 our %time;
 
+our %proc;
 sub new
 {
     my ( $class, %this ) = @_;
@@ -26,6 +34,8 @@ sub run
 {
     my ( $this, %run ) = @_;
 
+use Data::Dumper;
+print Dumper $this;
     our ( $logs, $exec, $lock ) = @$this{qw( logs exec lock )};
     my $proclock = NS::Util::ProcLock->new( "$lock/lock" );
    
@@ -38,56 +48,71 @@ sub run
     $proclock->lock();
     $0 = 'nices.bootstrap.master';
 
-    my $i = 590;
-    $SIG{'CHLD'} = sub { 1 while waitpid(-1, WNOHANG) > 0; };
+    
+    my ( $i, $cv ) = ( 0, AnyEvent->condvar );
 
-    $SIG{KILL} = $SIG{INT} = $SIG{TERM} = sub { 
-        unlink "$lock/lock";
+    our ( $logf, $logH ) = ( "$logs/current" );
+    
+    print "log $logs/current\n";
+    confess "open log: $!" unless open $logH, ">>$logf"; 
+    $logH->autoflush;
 
-        my %name; map{ $name{"$_.lock"} = 1 }map{ basename $_ } glob "$exec/*";  
 
-        for( map{ basename $_ }glob "$lock/*.lock" )  
-        {
-            unlink "$lock/$_" unless $name{$_};
-        }
-        exit;
-    };
 
-    my $worker = NS::Bootstrap::Worker->new( %$this );
-
-    while( $i++ )
-    {
-        sleep 6;
-        my @name = map{ basename $_ }glob "$exec/*";
-
-        unless( $i % 3 )
-        {
-            if( my $size= ( stat "$logs/current" )[7] )
+    my $t = AnyEvent->timer(
+        after => 2,
+        interval => 3,
+        cb => sub {
+            print "check\n";
+            my @name = map{ basename $_ }glob "$exec/*";
+            print Dumper \@name,\%proc;
+            for my $name ( @name )
             {
-                if( $size > $RUN{size} )
-                {
-                    my $num = $this->_num();
-                    system "mv '$logs/current' '$logs/log.$num'";
-	            map{ $this->kill( $_ ) }@name;
-                }
+                next if $proc{$name};
+                my ( $err, $wtr, $rdr ) = gensym;
+                my $pid = IPC::Open3::open3( undef, $rdr, $err, "$exec/$name" );
+           
+		$proc{$name}{pid} = $pid;
+                $proc{$name}{rdr} = AnyEvent->io (
+                    fh => $rdr, poll => "r",
+                    cb => sub {
+                        chomp (my $input = <$rdr>); 
+                        print $logH unixtai64n(time), " [$name] [STDOUT] $input\n";
+                    }
+                );
+                $proc{$name}{err} = AnyEvent->io (
+                    fh => $err, poll => "r", 
+                    cb => sub {
+                        chomp (my $input = <$err>);
+                        print $logH unixtai64n(time), " [$name] [STDERR] $input\n"; 
+                    }
+                );
             }
-            else { map{ $this->kill( $_ ) }@name; }
         }
-        unless( $i % 600 )
-        {
-            map{ $this->kill( $_ ) }@name;
+    );
+    my $tt = AnyEvent->timer(
+        after => 30,
+        interval => 60,
+        cb => sub {
+            print "cut log\n";
+            my $size= ( stat "$logs/current" )[7];
+            return unless $size > $RUN{size};
+            my $num = $this->_num();
+            system "mv '$logs/current' '$logs/log.$num'";
+            
+	    confess "open log: $!" unless open $logH, ">>$logf"; 
+	    $logH->autoflush;
+             
         }
-        for my $name ( @name )
-        {
-            $worker->run( name => $name )
-        }
-    }
+    );
+
+    $cv->recv;
     return $this;
 }
 
 sub _num
 {
-    my ( $logs, %time )= shift->{logs};
+    my ( $logs, %time ) = shift->{logs};
     for my $num ( 1 .. $RUN{keep} )
     {
        return $num unless $time{$num} = ( stat "$logs/log.$num" )[10];
@@ -95,19 +120,4 @@ sub _num
     return ( sort{ $time{$a} <=> $time{$b} } keys %time )[0];
 }
 
-sub kill
-{
-    my ( $this, $name, $SIGNAL ) = @_;
-    my $lock = $this->{lock};
-
-    my $plock = NS::Util::ProcLock->new( "$lock/$name.lock" );
-    return unless my  $pid = $plock->check();
-    return unless $pid =~ /^\d+$/;
-    return unless my $cmdline = `cat '/proc/$pid/cmdline'`;
-    chomp $cmdline;
-    return unless $cmdline eq "nices.bootstrap.worker.$name";
-
-    $SIGNAL ||= 'USR1';
-    kill $SIGNAL, $pid;
-}
 1;

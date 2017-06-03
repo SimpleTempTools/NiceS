@@ -3,7 +3,7 @@ package NS::VSSH::Comp;
 #use strict;
 use warnings;
 
-use NS::VSSH::OCMD::History;
+use NS::VSSH::History;
 use base Term::Completion;
 
 
@@ -115,7 +115,7 @@ my $reverse_prompt = '(reverse-i-search)';
         {
                 $_ =~ /^[a-zA-Z0-9 -\/]$/ && do {
                     $this->{out}->print( $this->{del_one} x $col_len , "\033[K");
-                    for my $his ( reverse  @NS::VSSH::OCMD::History::HISTORY )
+                    for my $his ( reverse  @NS::VSSH::History::HISTORY )
                     {
                         if( $his =~ /$reverse_2$_/ )
                         {
@@ -125,7 +125,7 @@ my $reverse_prompt = '(reverse-i-search)';
                             @choice_cycle = 
                                 grep{ /$reverse_2/ && $tmp{$_} == 1 }
                                 map{ $tmp{$_} ++; $_} 
-                                @NS::VSSH::OCMD::History::HISTORY;
+                                @NS::VSSH::History::HISTORY;
                             $choice_num = $#choice_cycle;
                             last;
                         }
@@ -145,7 +145,7 @@ my $reverse_prompt = '(reverse-i-search)';
                 $_ =~ $this->{erase} && do {
                     $this->{out}->print( $this->{del_one} x $col_len , "\033[K");
                     chop $reverse_2;
-                    for my $his ( reverse  @NS::VSSH::OCMD::History::HISTORY )
+                    for my $his ( reverse  @NS::VSSH::History::HISTORY )
                     {
                         if( $his =~ /$reverse_2/ )
                         {
@@ -154,7 +154,7 @@ my $reverse_prompt = '(reverse-i-search)';
                             @choice_cycle = 
                                 grep{ /$reverse_2/ && $tmp{$_} == 1 }
                                 map{ $tmp{$_} ++; $_}
-                            @NS::VSSH::OCMD::History::HISTORY;
+                            @NS::VSSH::History::HISTORY;
                             $choice_num = 0;
                             last;
                         }
@@ -319,7 +319,7 @@ my $reverse_prompt = '(reverse-i-search)';
         };
 
        $_ =~ $this->{up} && do {
-          @choice_cycle = @NS::VSSH::OCMD::History::HISTORY;
+          @choice_cycle = @NS::VSSH::History::HISTORY;
           last CASE unless @choice_cycle;
           unless(defined $choice_num) {
               $choice_num = $#choice_cycle;
@@ -349,7 +349,7 @@ my $reverse_prompt = '(reverse-i-search)';
 
         # down (CTRL-N)
         $_ =~ $this->{down} && do {
-          @choice_cycle = @NS::VSSH::OCMD::History::HISTORY;
+          @choice_cycle = @NS::VSSH::History::HISTORY;
           last CASE unless @choice_cycle;
           unless(defined $choice_num) {
               $this->bell();

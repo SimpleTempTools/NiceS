@@ -237,14 +237,12 @@ TO_INST_PM = build.pl \
 	lib/NS/Util/SQLiteDB.pm \
 	lib/NS/Util/Sudo.pm \
 	lib/NS/Util/TcpServer.pm \
+	lib/NS/Util/XTar.pm \
 	lib/NS/VSSH.pm \
-	lib/NS/VSSH/Auth.pm \
 	lib/NS/VSSH/Comp.pm \
-	lib/NS/VSSH/HostDB.pm \
-	lib/NS/VSSH/OCMD.pm \
-	lib/NS/VSSH/OCMD/Help.pm \
-	lib/NS/VSSH/OCMD/History.pm \
-	lib/NS/VSSH/VMIO.pm \
+	lib/NS/VSSH/Execute.pm \
+	lib/NS/VSSH/History.pm \
+	lib/NS/VSSH/Print.pm \
 	lib/NS/nices.pm \
 	nices.pl
 
@@ -300,22 +298,18 @@ PM_TO_BLIB = build.pl \
 	blib/lib/NS/Util/Sudo.pm \
 	lib/NS/Util/TcpServer.pm \
 	blib/lib/NS/Util/TcpServer.pm \
+	lib/NS/Util/XTar.pm \
+	blib/lib/NS/Util/XTar.pm \
 	lib/NS/VSSH.pm \
 	blib/lib/NS/VSSH.pm \
-	lib/NS/VSSH/Auth.pm \
-	blib/lib/NS/VSSH/Auth.pm \
 	lib/NS/VSSH/Comp.pm \
 	blib/lib/NS/VSSH/Comp.pm \
-	lib/NS/VSSH/HostDB.pm \
-	blib/lib/NS/VSSH/HostDB.pm \
-	lib/NS/VSSH/OCMD.pm \
-	blib/lib/NS/VSSH/OCMD.pm \
-	lib/NS/VSSH/OCMD/Help.pm \
-	blib/lib/NS/VSSH/OCMD/Help.pm \
-	lib/NS/VSSH/OCMD/History.pm \
-	blib/lib/NS/VSSH/OCMD/History.pm \
-	lib/NS/VSSH/VMIO.pm \
-	blib/lib/NS/VSSH/VMIO.pm \
+	lib/NS/VSSH/Execute.pm \
+	blib/lib/NS/VSSH/Execute.pm \
+	lib/NS/VSSH/History.pm \
+	blib/lib/NS/VSSH/History.pm \
+	lib/NS/VSSH/Print.pm \
+	blib/lib/NS/VSSH/Print.pm \
 	lib/NS/nices.pm \
 	blib/lib/NS/nices.pm \
 	nices.pl \
@@ -1135,14 +1129,12 @@ pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 	  lib/NS/Util/SQLiteDB.pm blib/lib/NS/Util/SQLiteDB.pm \
 	  lib/NS/Util/Sudo.pm blib/lib/NS/Util/Sudo.pm \
 	  lib/NS/Util/TcpServer.pm blib/lib/NS/Util/TcpServer.pm \
+	  lib/NS/Util/XTar.pm blib/lib/NS/Util/XTar.pm \
 	  lib/NS/VSSH.pm blib/lib/NS/VSSH.pm \
-	  lib/NS/VSSH/Auth.pm blib/lib/NS/VSSH/Auth.pm \
 	  lib/NS/VSSH/Comp.pm blib/lib/NS/VSSH/Comp.pm \
-	  lib/NS/VSSH/HostDB.pm blib/lib/NS/VSSH/HostDB.pm \
-	  lib/NS/VSSH/OCMD.pm blib/lib/NS/VSSH/OCMD.pm \
-	  lib/NS/VSSH/OCMD/Help.pm blib/lib/NS/VSSH/OCMD/Help.pm \
-	  lib/NS/VSSH/OCMD/History.pm blib/lib/NS/VSSH/OCMD/History.pm \
-	  lib/NS/VSSH/VMIO.pm blib/lib/NS/VSSH/VMIO.pm \
+	  lib/NS/VSSH/Execute.pm blib/lib/NS/VSSH/Execute.pm \
+	  lib/NS/VSSH/History.pm blib/lib/NS/VSSH/History.pm \
+	  lib/NS/VSSH/Print.pm blib/lib/NS/VSSH/Print.pm \
 	  lib/NS/nices.pm blib/lib/NS/nices.pm \
 	  nices.pl $(INST_LIB)/nices.pl 
 	$(NOECHO) $(TOUCH) pm_to_blib

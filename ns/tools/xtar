@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+use YAML::XS;
+
+use NS::Util::XTar;
+use NS::Util::OptConf;
+
+=head1 SYNOPSIS
+
+ $0 [--script script.sh] [--package foo.tar.gz] [--output file] 
+ 
+ package filename is $TMP in the script 
+   
+=cut
+
+my $option = NS::Util::OptConf->load();
+my %o = $option->get( qw( script=s package=s output=s ) )->dump();
+$option->assert(qw( script package output ));
+
+NS::Util::XTar->new( %o )->xtar();

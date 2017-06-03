@@ -1,0 +1,46 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+use NS::nices;
+
+use File::Basename;
+use NS::Util::OptConf;
+
+=head1 SYNOPSIS
+
+ $0 
+     show pack list
+
+ $0 --pack v1.0 
+
+     package 
+
+ $0 --pack v1.0 --so Linux --arch x86
+
+     release
+
+=cut
+
+my $option = NS::Util::OptConf->load();
+my %o = $option->get( qw( pack=s os=s arch=s) )->dump();
+
+my $nices = $NS::nices::NiceS;
+my $tmp = "$nices/tmp/release";
+system "mkdir -p '$tmp'" unless -d $tmp;
+unless( $o{pack} )
+{
+    map{ printf "%s\n", basename $_ ;}glob "$tmp/*";
+    exit;
+}
+
+system( "tar -zcvf $tmp/$o{pack} $nices/perl $nices/ns" ) unless -f "$tmp/$o{pack}";
+
+if( $o{os} && $o{arch} )
+{
+    my $to = "$nices/dashboard/public/download/$o{os}_$o{arch}";
+    system( "mkdir -p '$to'" ) unless -e $to;
+    system "cp '$tmp/$o{pack}' '$to/nices.$o{pack}.tar.gz'";
+    system "ln -fsn 'nices.$o{pack}.tar.gz' '$to/nices.latest.tar.gz'";
+}
+

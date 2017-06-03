@@ -1,4 +1,4 @@
-#!/home/s/ops/perl/bin/perl
+#!/home/work/nices/perl/bin/perl
 
 use strict;
 use warnings;
@@ -46,29 +46,12 @@ my $range = NS::Hermes->new( $option->dump( 'range' ) );
 
 
 my $client = NS::Poros::Client->new( 
-    map { join ':', $_, $port } $range->load( delete $o{range} )->list 
+    map { join ':', $_, $port } $range->load( delete $o{range} )->list
 );
 
-my $proxy = $o{'proxy-name'} || $o{proxy};
-$client->proxy( "$o{conf}/proxy/$proxy" ) if $proxy;
+my %result = $client->run( %o, query => \%query ); 
 
-my %result = $client->run( %o, input => \%query ); 
-
-my %mesg;
-while ( my ( $type, $mesg ) = each %result )
-{
-    while ( my ( $mesg, $node ) = each %$mesg )
-    {
-        map { $_ =~ s/:$port$// } @$node;
-
-#        $mesg =~ s/--- \d+\n$//;
-        $node = $range->load( $node );
-        $node = sprintf "%s[%d]", $node->dump(), scalar $node->list;
-        $mesg{$type}{$node} = $mesg;
-    }
-}
-
-YAML::XS::DumpFile \*STDERR, \%mesg if %mesg;
+YAML::XS::DumpFile \*STDERR, \%result if %result;
 exit 0;
 
 sub operator

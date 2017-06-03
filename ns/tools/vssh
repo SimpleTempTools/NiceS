@@ -1,56 +1,23 @@
-#!/data/scripts/nices/perl/bin/perl
+#!/home/work/nices/perl/bin/perl
 use strict;
 use warnings;
-
-use YAML::XS;
 use NS::Hermes;
+use NS::Util::OptConf;
 
 use NS::VSSH;
-use NS::VSSH::Auth;
-use NS::VSSH::VMIO;
-use NS::Util::OptConf;
-use FindBin qw( $RealBin );
 
 =head1 SYNOPSIS
 
- $0 [--range host] [--user user] [--max maxthread] [--timeout num] [--verbose] 
-        [--hostdb /my/hostdb/path ] [--checkpw]
+ $0 [--range host]
     
 =cut
 
-$NS::Util::OptConf::THIS = 'vssh';
-
 my $option = NS::Util::OptConf->load();
-my %o = $option->get( qw( range=s user=s max=i timeout=i hostdb=s verbose checkpw ) )->dump();
-
+my %o = $option->get( qw( range=s ) )->dump( 'vssh' );
 my $range = NS::Hermes->new( $option->dump( 'range' ) );
  
-my $user = $o{user} || `logname`;
-$user ||= 'unknown';
-chomp $user;
+$option->assert( 'range' );
 
-my $auth = NS::VSSH::Auth->new( user => $user );
-exit 0 unless $o{checkpw} ? $auth->checkpw( 3 ) : $auth->loadpw();
+exit unless my @node = $range->load( delete $o{range} )->list;
 
-mkdir $o{hostdb} if $o{hostdb} && ! -d $o{hostdb};
-
-$NS::VSSH::VMIO::ssh = $o{ssh} if $o{ssh};
-$NS::VSSH::VMIO::scp = $o{scp} if $o{scp};
-
-my $alias = "$RealBin/../util/vssh.alias";
-if( -f $alias )
-{   
-    my $a = eval{ YAML::XS::LoadFile $alias };
-    die "load $alias:$@" if $@;
-    $NS::VSSH::VMIO::ssh = $a->{ssh} if $a->{ssh};
-    $NS::VSSH::VMIO::scp = $a->{scp} if $a->{scp};
-}
-
-NS::VSSH->new( 
-    timeout => $o{timeout},
-    max => $o{max},
-    user => $user,
-    host => $o{range} ? [ $range->load( delete $o{range} )->list ] : [],
-    quiet => $o{verbose} ? 0 : 1,
-    hostdb => $o{hostdb},
-)->run();
+NS::VSSH->new( node => \@node )->run();
